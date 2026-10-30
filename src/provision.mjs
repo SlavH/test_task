@@ -241,11 +241,11 @@ export async function provisionAgent({ config, store = null, baseUrl = null }) {
     await store.addAudit("agent_provisioned", { agent_id: agent.agent_id, version, action, phone_number: config.retellPhoneNumber || null });
   }
 
-  } finally {
-    if (lockClient) {
-      await lockClient.query("SELECT pg_advisory_unlock(424242)");
-      lockClient.release();
-    }
-  }
   return { ...state, version };
+} finally {
+  if (lockClient) {
+    await lockClient.query("SELECT pg_advisory_unlock(424242)");
+    lockClient.release();
+  }
+}
 }
