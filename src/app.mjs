@@ -273,6 +273,24 @@ export function createApp({
     res.json({ persona });
   }));
 
+  app.get("/api/admin/status", requireAdmin, (req, res) => {
+    const httpsReady = config.publicBaseUrl.startsWith("https://");
+    const applyReady = Boolean(config.retellApiKey && config.retellAgentId && httpsReady);
+    res.json({
+      retellConfigured: Boolean(config.retellApiKey && config.retellAgentId),
+      phoneNumberConfigured: Boolean(config.retellPhoneNumber),
+      publicBaseUrl: config.publicBaseUrl,
+      httpsReady,
+      applyReady,
+      reason: applyReady
+        ? null
+        : !config.retellApiKey || !config.retellAgentId
+          ? "Retell is not configured."
+          : "PUBLIC_BASE_URL must be a public HTTPS URL before applying changes.",
+    });
+  });
+
+
   app.put("/api/admin/persona", requireAdmin, requireCsrf, asyncRoute(async (req, res) => {
     const validated = validatePersona(req.body || {});
     if (!validated.ok) return res.status(400).json({ error: validated.error });
@@ -292,6 +310,12 @@ export function createApp({
   app.post("/api/admin/persona/apply", requireAdmin, requireCsrf, asyncRoute(async (req, res) => {
     const validated = validatePersona(req.body || {});
     if (!validated.ok) return res.status(400).json({ error: validated.error });
+    if (!config.retellApiKey || !config.retellAgentId) {
+      return res.status(400).json({ error: "retell_not_configured" });
+    }
+    if (!config.publicBaseUrl.startsWith("https://")) {
+      return res.status(400).json({ error: "public_url_not_https" });
+    }
     await store.savePersonaConfig(validated.persona);
     await store.addAudit("persona_updated", { warmth: validated.persona.warmth, taskFocus: validated.persona.taskFocus });
     const state = await provisionAgent({ config, store });

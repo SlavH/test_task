@@ -884,14 +884,25 @@ async function submitLogin() {
 
 async function loadPersona() {
   try {
-    const response = await fetch("/api/admin/persona");
-    if (!response.ok) return;
-    const data = await response.json();
-    const persona = data.persona || {};
-    elements.personaWarmth.value = persona.warmth || "warm";
-    elements.personaTaskFocus.value = persona.taskFocus || "task_focused";
-    elements.personaFacts.value = JSON.stringify(persona.businessFacts || {}, null, 2);
-    elements.personaAdditions.value = persona.promptAdditions || "";
+    const [personaResponse, statusResponse] = await Promise.all([
+      fetch("/api/admin/persona"),
+      fetch("/api/admin/status"),
+    ]);
+    if (personaResponse.ok) {
+      const data = await personaResponse.json();
+      const persona = data.persona || {};
+      elements.personaWarmth.value = persona.warmth || "warm";
+      elements.personaTaskFocus.value = persona.taskFocus || "task_focused";
+      elements.personaFacts.value = JSON.stringify(persona.businessFacts || {}, null, 2);
+      elements.personaAdditions.value = persona.promptAdditions || "";
+    }
+    if (statusResponse.ok) {
+      const status = await statusResponse.json();
+      elements.personaApply.disabled = !status.applyReady;
+      elements.personaStatus.textContent = status.applyReady
+        ? "Ready to apply changes."
+        : status.reason || "Apply is not available.";
+    }
   } catch {
     showToast("Could not load persona");
   }
@@ -925,8 +936,10 @@ async function previewPersona() {
       headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
       body: JSON.stringify(body),
     });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "Preview failed");
+    const text = await response.text();
+    let data = {};
+    try { data = text ? JSON.parse(text) : {}; } catch { data = { error: text }; }
+    if (!response.ok) throw new Error(data.error || `Preview failed (${response.status})`);
     elements.personaPreviewOutput.textContent = data.prompt || "";
     elements.personaStatus.textContent = "Preview ready";
   } catch (error) {
@@ -945,15 +958,19 @@ async function applyPersona() {
       headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
       body: JSON.stringify(body),
     });
-    const saveData = await saveResponse.json();
-    if (!saveResponse.ok) throw new Error(saveData.error || "Save failed");
+    const saveText = await saveResponse.text();
+    let saveData = {};
+    try { saveData = saveText ? JSON.parse(saveText) : {}; } catch { saveData = { error: saveText }; }
+    if (!saveResponse.ok) throw new Error(saveData.error || `Save failed (${saveResponse.status})`);
     const applyResponse = await fetch("/api/admin/persona/apply", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
       body: JSON.stringify(body),
     });
-    const applyData = await applyResponse.json();
-    if (!applyResponse.ok) throw new Error(applyData.error || "Apply failed");
+    const applyText = await applyResponse.text();
+    let applyData = {};
+    try { applyData = applyText ? JSON.parse(applyText) : {}; } catch { applyData = { error: applyText }; }
+    if (!applyResponse.ok) throw new Error(applyData.error || `Apply failed (${applyResponse.status})`);
     elements.personaStatus.textContent = `Applied as version ${applyData.state?.version ?? ""}`;
     showToast("Persona applied to Grace");
   } catch (error) {
