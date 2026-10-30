@@ -22,8 +22,18 @@ export function loadConfig(env = process.env) {
   return {
     port,
     publicBaseUrl,
-    databaseUrl: env.DATABASE_URL || "",
-    migrationDatabaseUrl: env.MIGRATION_DATABASE_URL || env.DATABASE_URL || "",
+    databaseUrl:
+      env.DATABASE_URL ||
+      env.POSTGRES_PRISMA_URL ||
+      env.POSTGRES_URL ||
+      "",
+    migrationDatabaseUrl:
+      env.MIGRATION_DATABASE_URL ||
+      env.POSTGRES_URL_NON_POOLING ||
+      env.POSTGRES_URL ||
+      env.DATABASE_URL ||
+      env.POSTGRES_PRISMA_URL ||
+      "",
     companyName: env.COMPANY_NAME || "FixCall Appliance Repair",
     timezone: env.TIMEZONE || "America/Los_Angeles",
     dashboardTitle: env.DASHBOARD_TITLE || "FixCall Inbox",

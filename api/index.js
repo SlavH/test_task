@@ -1,6 +1,5 @@
 import { loadConfig } from "../src/config.mjs";
 import { createPool } from "../src/db.mjs";
-import { runMigrations } from "../src/db.mjs";
 import { Store } from "../src/store.mjs";
 import { createApp } from "../src/app.mjs";
 import { EventBus, NotificationService } from "../src/notifications.mjs";
@@ -15,7 +14,6 @@ let appPromise;
 async function createServerApp() {
   const config = loadConfig();
   const pool = createPool(config);
-  await runMigrations(pool);
   const store = await new Store({ pool }).init();
   const eventBus = new EventBus();
   const notificationService = new NotificationService({
