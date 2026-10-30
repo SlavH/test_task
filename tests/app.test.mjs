@@ -7,18 +7,23 @@ import { createApp } from "../src/app.mjs";
 import { loadConfig } from "../src/config.mjs";
 import { NotificationService, EventBus } from "../src/notifications.mjs";
 import { signRetellBody } from "../src/retell.mjs";
+import { newDb } from "pg-mem";
+import { runMigrations } from "../src/db.mjs";
 import { Store } from "../src/store.mjs";
 import { formatTelegram } from "../src/telegram.mjs";
 
 const API_KEY = "key_test_fixcall";
 
 async function harness({ allowUnsigned = false } = {}) {
-  const dir = await mkdtemp(path.join(tmpdir(), "fixcall-test-"));
+  const db = newDb();
+  const { Pool } = db.adapters.createPg();
+  const pool = new Pool();
+  await runMigrations(pool);
   const config = {
     ...loadConfig({}),
     port: 0,
     publicBaseUrl: "https://inbox.example.test",
-    dataDir: dir,
+    databaseUrl: "postgres://test",
     retellApiKey: API_KEY,
     retellAgentId: "agent_test",
     telegramBotToken: "",
@@ -27,7 +32,7 @@ async function harness({ allowUnsigned = false } = {}) {
     finalizeOrphans: false,
     webCallRateLimit: 100,
   };
-  const store = await new Store({ dataDir: dir }).init();
+  const store = await new Store({ pool }).init();
   const eventBus = new EventBus();
   const notificationService = new NotificationService({
     store,
@@ -84,7 +89,7 @@ async function harness({ allowUnsigned = false } = {}) {
     async close() {
       eventBus.close();
       await new Promise((resolve) => server.close(resolve));
-      await rm(dir, { recursive: true, force: true });
+      await pool.end();
     },
   };
 }
@@ -152,7 +157,7 @@ test("standard booking requires a clear fee acceptance in the transcript", async
   assert.equal(response.status, 200);
   assert.equal(json.ok, true);
   assert.match(json.booking_id, /^FC-/);
-  assert.equal(h.store.getBooking(call.call_id).is_warranty, false);
+  assert.equal((await h.store.getBooking(call.call_id)).is_warranty, false);
 });
 
 test("standard booking is rejected without a clear yes", async (t) => {
@@ -172,7 +177,7 @@ test("standard booking is rejected without a clear yes", async (t) => {
   });
   assert.equal(json.ok, false);
   assert.equal(json.code, "fee_not_accepted");
-  assert.equal(h.store.getBooking(call.call_id), null);
+  assert.equal(await h.store.getBooking(call.call_id), null);
 });
 
 test("agent cannot claim fee acceptance without the transcript", async (t) => {
@@ -219,7 +224,7 @@ test("covered warranty booking succeeds with no fee", async (t) => {
     call,
   });
   assert.equal(json.ok, true);
-  const booking = h.store.getBooking(call.call_id);
+  const booking = await h.store.getBooking(call.call_id);
   assert.equal(booking.is_warranty, true);
   assert.equal(booking.fee_accepted, false);
 });

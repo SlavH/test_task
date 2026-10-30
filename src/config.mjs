@@ -22,9 +22,16 @@ export function loadConfig(env = process.env) {
   return {
     port,
     publicBaseUrl,
+    databaseUrl: env.DATABASE_URL || "",
     companyName: env.COMPANY_NAME || "FixCall Appliance Repair",
     timezone: env.TIMEZONE || "America/Los_Angeles",
     dashboardTitle: env.DASHBOARD_TITLE || "FixCall Inbox",
+    dashboardUser: env.DASHBOARD_USER || "admin",
+    dashboardPassword: env.DASHBOARD_PASSWORD || "",
+    adminSessionSecret:
+      env.ADMIN_SESSION_SECRET ||
+      env.DASHBOARD_PASSWORD ||
+      "fixcall-local-session-secret",
     dataDir: path.resolve(env.DATA_DIR || "./data"),
     retellApiKey: env.RETELL_API_KEY || "",
     retellAgentId: env.RETELL_AGENT_ID || "",

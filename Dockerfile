@@ -20,6 +20,7 @@ COPY --from=build /app/src ./src
 COPY --from=build /app/public ./public
 COPY --from=build /app/agent ./agent
 COPY --from=build /app/scripts ./scripts
+COPY --from=build /app/migrations ./migrations
 COPY --from=build /app/web ./web
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 

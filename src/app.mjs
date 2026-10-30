@@ -1,6 +1,8 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import express from "express";
+import { createSessionToken, verifySessionToken, parseCookies, sessionCookie, clearSessionCookie, csrfCookie, readCsrf, constantTimePasswordMatch, CSRF_COOKIE } from "./auth.mjs";
+import { provisionAgent } from "./provision.mjs";
 import {
   cleanString,
   validateBooking,
@@ -111,6 +113,25 @@ export function createApp({
   app.set("trust proxy", 1);
   app.use(setSecurityHeaders);
 
+  function isAdmin(req) {
+    if (!config.dashboardPassword) return true;
+    const cookies = parseCookies(req.headers.cookie);
+    return verifySessionToken(cookies.fixcall_admin, config.adminSessionSecret);
+  }
+
+  function requireAdmin(req, res, next) {
+    if (isAdmin(req)) return next();
+    return res.status(401).json({ error: "admin_required" });
+  }
+
+  function requireCsrf(req, res, next) {
+    if (!config.dashboardPassword) return next();
+    const cookies = parseCookies(req.headers.cookie);
+    const header = req.get("x-csrf-token") || "";
+    if (cookies.fixcall_csrf && cookies.fixcall_csrf === header) return next();
+    return res.status(403).json({ error: "csrf_failed" });
+  }
+
   app.get("/healthz", (req, res) => {
     res.setHeader("Cache-Control", "no-store");
     res.json({
@@ -139,7 +160,7 @@ export function createApp({
       const type = cleanString(req.query.type, 40);
       const status = cleanString(req.query.status, 40);
       const source = cleanString(req.query.source, 40);
-      const all = store.listNotifications();
+      const all = await store.listNotifications();
       const notifications = all.filter((item) => {
         if (type && type !== "all" && item.type !== type) return false;
         if (status && status !== "all" && item.status !== status) return false;
@@ -176,7 +197,7 @@ export function createApp({
   app.get(
     "/api/notifications/:callId",
     asyncRoute(async (req, res) => {
-      const notification = store.getNotification(req.params.callId);
+      const notification = await store.getNotification(req.params.callId);
       if (!notification) {
         return res.status(404).json({ error: "not_found" });
       }
@@ -195,6 +216,113 @@ export function createApp({
       ),
     });
   });
+
+  app.get("/api/auth/status", (req, res) => {
+    res.json({ admin: isAdmin(req), authEnabled: Boolean(config.dashboardPassword) });
+  });
+
+  app.get("/api/auth/csrf", (req, res) => {
+    const { token, cookie } = csrfCookie();
+    res.setHeader("Set-Cookie", cookie);
+    res.json({ token });
+  });
+
+  app.post("/api/auth/login", asyncRoute(async (req, res) => {
+    if (!config.dashboardPassword) return res.json({ ok: true, admin: true });
+    const password = String(req.body?.password || "");
+    if (!constantTimePasswordMatch(password, config.dashboardPassword)) {
+      return res.status(401).json({ error: "invalid_password" });
+    }
+    const token = createSessionToken(config.adminSessionSecret);
+    const { token: csrf, cookie: csrfCookieValue } = csrfCookie();
+    res.setHeader("Set-Cookie", [sessionCookie(token), csrfCookieValue]);
+    return res.json({ ok: true, admin: true, csrf });
+  }));
+
+  app.post("/api/auth/logout", (req, res) => {
+    res.setHeader("Set-Cookie", [clearSessionCookie(), `${CSRF_COOKIE}=; Path=/; Max-Age=0`]);
+    return res.json({ ok: true });
+  });
+
+  app.get("/api/admin/persona", requireAdmin, asyncRoute(async (req, res) => {
+    const persona = await store.getPersonaConfig();
+    res.json({ persona });
+  }));
+
+  app.put("/api/admin/persona", requireAdmin, requireCsrf, asyncRoute(async (req, res) => {
+    const warmth = ["warm", "professional", "casual"].includes(req.body?.warmth)
+      ? req.body.warmth
+      : "warm";
+    const taskFocus = ["task_focused", "balanced", "conversational"].includes(req.body?.taskFocus)
+      ? req.body.taskFocus
+      : "task_focused";
+    const persona = await store.savePersonaConfig({
+      warmth,
+      taskFocus,
+      businessFacts: req.body?.businessFacts || {},
+      promptAdditions: String(req.body?.promptAdditions || "").slice(0, 4000),
+    });
+    await store.addAudit("persona_updated", { warmth, taskFocus });
+    res.json({ persona });
+  }));
+
+  app.post("/api/admin/persona/preview", requireAdmin, requireCsrf, asyncRoute(async (req, res) => {
+    const persona = {
+      warmth: req.body?.warmth || "warm",
+      taskFocus: req.body?.taskFocus || "task_focused",
+      businessFacts: req.body?.businessFacts || {},
+      promptAdditions: String(req.body?.promptAdditions || "").slice(0, 4000),
+    };
+    const { renderPersonaPrompt } = await import("./provision.mjs");
+    const prompt = await renderPersonaPrompt(persona);
+    res.json({ ok: true, persona, prompt });
+  }));
+
+  app.post("/api/admin/persona/apply", requireAdmin, requireCsrf, asyncRoute(async (req, res) => {
+    const state = await provisionAgent({ config, store });
+    res.json({ ok: true, state });
+  }));
+
+  app.get("/api/admin/export", requireAdmin, asyncRoute(async (req, res) => {
+    const data = await store.exportData();
+    res.setHeader("Content-Type", "application/json");
+    res.setHeader("Content-Disposition", "attachment; filename=fixcall-export.json");
+    res.send(JSON.stringify(data, null, 2));
+  }));
+
+  app.post("/api/admin/calls/:callId/notes", requireAdmin, requireCsrf, asyncRoute(async (req, res) => {
+    const note = String(req.body?.note || "").trim().slice(0, 1000);
+    if (note.length < 2) return res.status(400).json({ error: "note_too_short" });
+    const saved = await store.addCallNote(req.params.callId, note, config.dashboardUser || "admin");
+    await store.addAudit("note_added", { callId: req.params.callId });
+    res.status(201).json({ note: saved });
+  }));
+
+  app.get("/api/admin/calls/:callId/notes", requireAdmin, asyncRoute(async (req, res) => {
+    const notes = await store.listCallNotes(req.params.callId);
+    res.json({ notes });
+  }));
+
+  app.post("/api/admin/calls/:callId/tags", requireAdmin, requireCsrf, asyncRoute(async (req, res) => {
+    const tag = String(req.body?.tag || "").trim().slice(0, 40);
+    if (tag.length < 1) return res.status(400).json({ error: "tag_required" });
+    const tags = await store.addCallTag(req.params.callId, tag);
+    await store.addAudit("tag_added", { callId: req.params.callId, tag });
+    res.json({ tags });
+  }));
+
+  app.delete("/api/admin/calls/:callId/tags/:tag", requireAdmin, requireCsrf, asyncRoute(async (req, res) => {
+    const tags = await store.removeCallTag(req.params.callId, req.params.tag);
+    await store.addAudit("tag_removed", { callId: req.params.callId, tag: req.params.tag });
+    res.json({ tags });
+  }));
+
+  app.post("/api/admin/calls/:callId/resend-telegram", requireAdmin, requireCsrf, asyncRoute(async (req, res) => {
+    const notification = await store.getNotification(req.params.callId);
+    if (!notification) return res.status(404).json({ error: "not_found" });
+    const result = await notificationService.deliverTelegram(notification, true);
+    res.json({ ok: Boolean(result?.ok), result });
+  }));
 
   app.get("/api/events", (req, res) => {
     res.setHeader("Content-Type", "text/event-stream");
@@ -230,7 +358,7 @@ export function createApp({
       return res.status(404).json({ error: "unknown_tool" });
     }
 
-    const existingCall = store.getCall(callId) || {};
+    const existingCall = (await store.getCall(callId)) || {};
     const callSnapshot = {
       ...existingCall,
       ...call,
@@ -239,8 +367,8 @@ export function createApp({
     };
     await store.upsertCall(callSnapshot);
 
-    const existingBooking = store.getBooking(callId);
-    const existingMessage = store.getMessage(callId);
+    const existingBooking = await store.getBooking(callId);
+    const existingMessage = await store.getMessage(callId);
     if (
       toolName === "book-service-call" &&
       existingBooking
@@ -350,7 +478,7 @@ export function createApp({
         return res.json({ ok: true, ignored: true });
       }
       const eventKey = `${event}:${call.call_id}`;
-      if (store.isEventProcessed(eventKey)) {
+      if (await store.isEventProcessed(eventKey)) {
         return res.json({ ok: true, duplicate: true });
       }
       const analysis =

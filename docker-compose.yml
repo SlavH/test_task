@@ -1,0 +1,46 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: fixcall
+      POSTGRES_PASSWORD: fixcall
+      POSTGRES_DB: fixcall
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fixcall -d fixcall"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DATABASE_URL: postgres://fixcall:fixcall@postgres:5432/fixcall
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3000}
+      COMPANY_NAME: ${COMPANY_NAME:-FixCall Appliance Repair}
+      TIMEZONE: ${TIMEZONE:-America/Los_Angeles}
+      RETELL_API_KEY: ${RETELL_API_KEY}
+      RETELL_AGENT_ID: ${RETELL_AGENT_ID}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
+      DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD}
+      ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET}
+      ALLOW_UNSIGNED_RETELL: "false"
+      FINALIZE_ORPHANS: "true"
+      WEB_CALL_RATE_LIMIT: ${WEB_CALL_RATE_LIMIT:-5}
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - app_data:/var/data
+
+volumes:
+  postgres_data:
+  app_data:

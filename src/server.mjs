@@ -1,10 +1,12 @@
 import { createApp } from "./app.mjs";
 import { loadConfig } from "./config.mjs";
+import { createPool, closePool } from "./db.mjs";
 import { EventBus, NotificationService } from "./notifications.mjs";
 import { Store } from "./store.mjs";
 
 const config = loadConfig();
-const store = await new Store({ dataDir: config.dataDir }).init();
+const pool = createPool(config);
+const store = await new Store({ pool }).init();
 const eventBus = new EventBus();
 const notificationService = new NotificationService({
   store,
@@ -25,6 +27,9 @@ const server = app.listen(config.port, () => {
   if (!config.retellAgentId) {
     console.warn("RETELL_AGENT_ID is not set; browser calls are disabled.");
   }
+  if (!config.databaseUrl) {
+    console.warn("DATABASE_URL is not set.");
+  }
   if (config.finalizeOrphans) {
     notificationService
       .reconcile()
@@ -35,7 +40,9 @@ const server = app.listen(config.port, () => {
 function shutdown(signal) {
   console.log(`${signal} received, shutting down`);
   eventBus.close();
-  server.close(() => process.exit(0));
+  server.close(() => {
+    closePool(pool).finally(() => process.exit(0));
+  });
   setTimeout(() => process.exit(1), 8000).unref();
 }
 

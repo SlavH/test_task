@@ -62,6 +62,23 @@ const elements = {
   endCall: document.getElementById("end-call"),
   doneCall: document.getElementById("done-call"),
   closeCall: document.getElementById("close-call"),
+  openPersona: document.getElementById("open-persona"),
+  loginDialog: document.getElementById("login-dialog"),
+  loginPassword: document.getElementById("login-password"),
+  loginSubmit: document.getElementById("login-submit"),
+  loginError: document.getElementById("login-error"),
+  loginStatus: document.getElementById("login-status"),
+  personaDialog: document.getElementById("persona-dialog"),
+  personaWarmth: document.getElementById("persona-warmth"),
+  personaTaskFocus: document.getElementById("persona-task-focus"),
+  personaFacts: document.getElementById("persona-facts"),
+  personaAdditions: document.getElementById("persona-additions"),
+  personaPreview: document.getElementById("persona-preview"),
+  personaApply: document.getElementById("persona-apply"),
+  personaClose: document.getElementById("persona-close"),
+  personaError: document.getElementById("persona-error"),
+  personaStatus: document.getElementById("persona-status"),
+  personaPreviewOutput: document.getElementById("persona-preview-output"),
 };
 
 function el(tag, className, text) {
@@ -658,6 +675,22 @@ function bindUI() {
       closeDetail();
     }
   });
+
+  if (elements.openPersona) {
+    elements.openPersona.addEventListener("click", openPersonaDialog);
+  }
+  if (elements.personaClose) {
+    elements.personaClose.addEventListener("click", () => elements.personaDialog.close());
+  }
+  if (elements.personaPreview) {
+    elements.personaPreview.addEventListener("click", previewPersona);
+  }
+  if (elements.personaApply) {
+    elements.personaApply.addEventListener("click", applyPersona);
+  }
+  if (elements.loginSubmit) {
+    elements.loginSubmit.addEventListener("click", submitLogin);
+  }
 }
 
 let voiceController = null;
@@ -809,8 +842,135 @@ function endCall() {
   }, 1500);
 }
 
+async function ensureAdmin() {
+  try {
+    const response = await fetch("/api/auth/status");
+    const data = await response.json();
+    if (!data.authEnabled || data.admin) return true;
+    if (elements.loginDialog) {
+      elements.loginDialog.showModal();
+      return false;
+    }
+    const password = window.prompt("Admin password");
+    if (!password) return false;
+    const login = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
+    if (!login.ok) {
+      showToast("Admin login failed");
+      return false;
+    }
+    return true;
+  } catch {
+    return true;
+  }
+}
+
+async function submitLogin() {
+  const password = elements.loginPassword.value;
+  elements.loginError.textContent = "";
+  try {
+    const response = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
+    if (!response.ok) {
+      elements.loginError.textContent = "Invalid password";
+      return;
+    }
+    elements.loginDialog.close();
+    await loadNotifications({ silent: true });
+    showToast("Signed in");
+  } catch {
+    elements.loginError.textContent = "Login failed";
+  }
+}
+
+async function loadPersona() {
+  try {
+    const response = await fetch("/api/admin/persona");
+    if (!response.ok) return;
+    const data = await response.json();
+    const persona = data.persona || {};
+    elements.personaWarmth.value = persona.warmth || "warm";
+    elements.personaTaskFocus.value = persona.taskFocus || "task_focused";
+    elements.personaFacts.value = JSON.stringify(persona.businessFacts || {}, null, 2);
+    elements.personaAdditions.value = persona.promptAdditions || "";
+  } catch {
+    showToast("Could not load persona");
+  }
+}
+
+async function personaPayload() {
+  let businessFacts = {};
+  try {
+    businessFacts = JSON.parse(elements.personaFacts.value || "{}");
+  } catch {
+    throw new Error("Business facts must be valid JSON");
+  }
+  const csrf = await fetch("/api/auth/csrf").then((r) => r.json()).then((d) => d.token).catch(() => "");
+  return {
+    csrf,
+    body: {
+      warmth: elements.personaWarmth.value,
+      taskFocus: elements.personaTaskFocus.value,
+      businessFacts,
+      promptAdditions: elements.personaAdditions.value,
+    },
+  };
+}
+
+async function previewPersona() {
+  elements.personaError.textContent = "";
+  try {
+    const { csrf, body } = await personaPayload();
+    const response = await fetch("/api/admin/persona/preview", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
+      body: JSON.stringify(body),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Preview failed");
+    elements.personaPreviewOutput.textContent = data.prompt || "";
+    elements.personaStatus.textContent = "Preview ready";
+  } catch (error) {
+    elements.personaError.textContent = error.message;
+  }
+}
+
+async function applyPersona() {
+  elements.personaError.textContent = "";
+  elements.personaStatus.textContent = "Applying to agent...";
+  try {
+    const { csrf } = await personaPayload();
+    const response = await fetch("/api/admin/persona/apply", {
+      method: "POST",
+      headers: { "X-CSRF-Token": csrf },
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Apply failed");
+    elements.personaStatus.textContent = `Applied as version ${data.state?.version ?? ""}`;
+    showToast("Persona applied to Grace");
+  } catch (error) {
+    elements.personaError.textContent = error.message;
+    elements.personaStatus.textContent = "Apply failed";
+  }
+}
+
+function openPersonaDialog() {
+  loadPersona();
+  elements.personaDialog.showModal();
+}
+
 async function init() {
   bindUI();
+  const admin = await ensureAdmin();
+  if (!admin && elements.loginDialog) {
+    elements.loginDialog.showModal();
+  }
   try {
     await loadConfig();
   } catch {

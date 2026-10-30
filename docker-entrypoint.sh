@@ -9,4 +9,5 @@ if [ "$(id -u)" = "0" ]; then
   exec su-exec node "$@"
 fi
 
+node /app/scripts/migrate.mjs
 exec "$@"

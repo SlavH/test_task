@@ -62,7 +62,7 @@ export class NotificationService {
 
   async finalizeCall(call) {
     if (!call?.call_id) return null;
-    const existingCall = this.store.getCall(call.call_id) || {};
+    const existingCall = (await this.store.getCall(call.call_id)) || {};
     const mergedCall = {
       ...existingCall,
       ...call,
@@ -71,8 +71,8 @@ export class NotificationService {
     };
     await this.store.upsertCall(mergedCall);
 
-    const booking = this.store.getBooking(call.call_id);
-    const message = this.store.getMessage(call.call_id);
+    const booking = await this.store.getBooking(call.call_id);
+    const message = await this.store.getMessage(call.call_id);
     const records = mergedCall.tool_records || [];
     const incoming = buildNotification({
       call: mergedCall,
@@ -80,20 +80,20 @@ export class NotificationService {
       booking,
       message,
     });
-    const existing = this.store.getNotification(call.call_id);
+    const existing = await this.store.getNotification(call.call_id);
     const notification = mergeNotification(existing, incoming);
     await this.store.saveNotification(notification);
     this.eventBus.broadcast("notification", notification);
 
     await this.deliverTelegram(notification, Boolean(existing));
-    return this.store.getNotification(call.call_id);
+    return await this.store.getNotification(call.call_id);
   }
 
   async deliverTelegram(notification, hadExisting) {
     if (!this.config.telegramBotToken || !this.config.telegramChatId) {
       notification.telegramStatus = "skipped";
       await this.store.saveNotification(notification);
-      return;
+      return { ok: false, skipped: true, reason: "telegram_not_configured" };
     }
 
     let result;
@@ -116,11 +116,12 @@ export class NotificationService {
         `Telegram delivery failed for ${notification.call_id}: ${result.reason}`,
       );
     }
+    return result;
   }
 
   async processWebhookEvent({ event, call, analysis }) {
     if (!call?.call_id) return null;
-    const existing = this.store.getCall(call.call_id) || {};
+    const existing = (await this.store.getCall(call.call_id)) || {};
     const merged = {
       ...existing,
       ...call,
@@ -135,11 +136,11 @@ export class NotificationService {
 
   async reconcile() {
     if (!this.config.finalizeOrphans) return;
-    const calls = this.store.listCalls();
+    const calls = await this.store.listCalls();
     for (const call of calls) {
       if (
         call.end_timestamp &&
-        !this.store.getNotification(call.call_id) &&
+        !(await this.store.getNotification(call.call_id)) &&
         call.webhook_last_event !== "call_started"
       ) {
         await this.finalizeCall(call);

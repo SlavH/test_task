@@ -61,7 +61,7 @@ npm run seed:demo   # optional local demo cards
 npm start
 ```
 
-Open `http://localhost:3000`. The inbox is public by default; no dashboard password is used.
+Open `http://localhost:3000`. Sign in with the configured admin password when one is set.
 
 Run the checks:
 
@@ -77,8 +77,11 @@ npm test
 | `RETELL_API_KEY` | Yes | Retell server API key. Never expose to the browser. |
 | `RETELL_AGENT_ID` | Yes | Agent created by `npm run provision`. |
 | `PUBLIC_BASE_URL` | Production | Public HTTPS URL for tools, webhook, and Telegram links. Falls back to `RENDER_EXTERNAL_URL`. |
+| `DATABASE_URL` | Yes | PostgreSQL connection string. |
 | `TELEGRAM_BOT_TOKEN` | For notifications | Telegram bot token. |
 | `TELEGRAM_CHAT_ID` | For notifications | Target chat or user ID. |
+| `DASHBOARD_PASSWORD` | Production | Shared admin password. Leave empty for local development. |
+| `ADMIN_SESSION_SECRET` | Production | Secret used to sign admin sessions. |
 | `DATA_DIR` | No | Store directory. Render uses `/var/data`. |
 | `ALLOW_UNSIGNED_RETELL` | No | Local testing only. Must stay `false` in production. |
 | `WEB_CALL_RATE_LIMIT` | No | Browser demo calls per IP per minute. Defaults to `5`. |
@@ -162,7 +165,7 @@ No phone number was purchased. To move to real inbound calls, buy or port a numb
 
 ## Data and privacy
 
-The JSON store is written atomically to `DATA_DIR/state.json`. It contains caller names, callback numbers, addresses, issue descriptions, transcripts, and booking IDs. The inbox is protected by Basic auth. Do not expose `DATA_DIR` or the dashboard without a password.
+The JSON store is written atomically to `DATA_DIR/state.json`. It contains caller names, callback numbers, addresses, issue descriptions, transcripts, and booking IDs. Admin access uses a signed session cookie. Store PostgreSQL credentials and admin secrets in environment variables only.
 
 Call recordings are linked only when Retell returns a recording URL. Access to Retell recordings is still controlled by Retell.
 
