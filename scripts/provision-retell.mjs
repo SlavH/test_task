@@ -42,12 +42,12 @@ function buildTools() {
       type: "end_call",
       name: "end_call",
       description:
-        "End the call after a warm goodbye, after a spam refusal, or when the caller is finished and has no more questions.",
+        "End the call immediately after a warm goodbye, after a spam refusal, or when the caller is finished and has no more questions. Call this in the same turn as the final goodbye; do not leave the line open.",
     },
     customTool({
       name: "book_service_call",
       description:
-        "Book a repair service request after collecting all required customer and appliance details. For standard calls, only call this after the caller clearly accepts the $99 service call fee. For warranty calls, only use when the caller said the appliance is under warranty and the brand is LG, Samsung, or General Electric.",
+        "Book a repair service request after collecting all required customer and appliance details. For standard calls, only call this after the caller clearly accepts the $99 service call fee. For warranty calls, only use when the caller said the appliance is under warranty and the brand is LG, Samsung, or General Electric. After the booking succeeds, ask if there is anything else, then give a short goodbye and call end_call.",
       path: "/api/retell/tools/book-service-call",
       executionMessage:
         "A short, natural line like 'Okay, give me one sec to get that in for you.'",
@@ -233,19 +233,37 @@ async function main() {
     if (!llmId) {
       throw new Error("Existing agent has no Retell LLM response engine");
     }
-    console.log(`Updating agent ${existing.agent_id} / LLM ${llmId}`);
+    const baseVersion = Number(existing.version ?? 0);
+    console.log(`Creating draft agent version from base ${baseVersion}`);
+    const draft = await retellRequest(
+      config,
+      "POST",
+      `/create-agent-version/${existing.agent_id}`,
+      { base_version: baseVersion },
+    );
+    const draftVersion = Number(draft.version);
+    console.log(`Updating LLM ${llmId} version ${draftVersion}`);
     await retellRequest(
       config,
       "PATCH",
-      `/update-retell-llm/${llmId}`,
+      `/update-retell-llm/${llmId}?version=${draftVersion}`,
       llmPayload,
     );
+    console.log(`Updating agent draft version ${draftVersion}`);
     agent = await retellRequest(
       config,
       "PATCH",
-      `/update-agent/${existing.agent_id}`,
-      agentPayload,
+      `/update-agent/${existing.agent_id}?version=${draftVersion}`,
+      {
+        ...agentPayload,
+        response_engine: {
+          type: "retell-llm",
+          llm_id: llmId,
+          version: draftVersion,
+        },
+      },
     );
+    agent = { ...draft, ...agent, version: draftVersion };
   } else {
     action = "created";
     console.log("Creating a new Retell LLM and voice agent");

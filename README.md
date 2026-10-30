@@ -61,7 +61,7 @@ npm run seed:demo   # optional local demo cards
 npm start
 ```
 
-Open `http://localhost:3000`. If `DASHBOARD_PASSWORD` is empty, local access is unprotected.
+Open `http://localhost:3000`. The inbox is public by default; no dashboard password is used.
 
 Run the checks:
 
@@ -79,8 +79,6 @@ npm test
 | `PUBLIC_BASE_URL` | Production | Public HTTPS URL for tools, webhook, and Telegram links. Falls back to `RENDER_EXTERNAL_URL`. |
 | `TELEGRAM_BOT_TOKEN` | For notifications | Telegram bot token. |
 | `TELEGRAM_CHAT_ID` | For notifications | Target chat or user ID. |
-| `DASHBOARD_USER` | No | Basic auth user. Defaults to `admin`. |
-| `DASHBOARD_PASSWORD` | Production | Protects the inbox and browser demo API. |
 | `DATA_DIR` | No | Store directory. Render uses `/var/data`. |
 | `ALLOW_UNSIGNED_RETELL` | No | Local testing only. Must stay `false` in production. |
 | `WEB_CALL_RATE_LIMIT` | No | Browser demo calls per IP per minute. Defaults to `5`. |

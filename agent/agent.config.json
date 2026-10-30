@@ -12,7 +12,7 @@
   "denoising_mode": "noise-cancellation",
   "language": "en-US",
   "max_call_duration_ms": 900000,
-  "end_call_after_silence_ms": 30000,
+  "end_call_after_silence_ms": 10000,
   "webhook_timeout_ms": 10000,
   "webhook_events": ["call_ended", "call_analyzed"],
   "boosted_keywords": [

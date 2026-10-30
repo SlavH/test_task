@@ -20,10 +20,6 @@ services:
         value: FixCall Appliance Repair
       - key: TIMEZONE
         value: America/Los_Angeles
-      - key: DASHBOARD_USER
-        value: admin
-      - key: DASHBOARD_PASSWORD
-        generateValue: true
       - key: RETELL_API_KEY
         sync: false
       - key: RETELL_AGENT_ID

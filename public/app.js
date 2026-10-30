@@ -765,6 +765,9 @@ async function startCall() {
           "Call ended. Saving the summary for the inbox...";
         setTimeout(() => loadNotifications({ silent: true }).catch(() => {}), 1800);
         setTimeout(() => loadNotifications({ silent: true }).catch(() => {}), 6500);
+        setTimeout(() => {
+          if (elements.dialog.open) elements.dialog.close();
+        }, 1500);
       },
       onError: (message) => {
         elements.callError.textContent = message;
@@ -801,6 +804,9 @@ function endCall() {
     "Call ended. Saving the summary for the inbox...";
   setTimeout(() => loadNotifications({ silent: true }).catch(() => {}), 1600);
   setTimeout(() => loadNotifications({ silent: true }).catch(() => {}), 6000);
+  setTimeout(() => {
+    if (elements.dialog.open) elements.dialog.close();
+  }, 1500);
 }
 
 async function init() {

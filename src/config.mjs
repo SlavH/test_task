@@ -24,8 +24,6 @@ export function loadConfig(env = process.env) {
     publicBaseUrl,
     companyName: env.COMPANY_NAME || "FixCall Appliance Repair",
     timezone: env.TIMEZONE || "America/Los_Angeles",
-    dashboardUser: env.DASHBOARD_USER || "admin",
-    dashboardPassword: env.DASHBOARD_PASSWORD || "",
     dashboardTitle: env.DASHBOARD_TITLE || "FixCall Inbox",
     dataDir: path.resolve(env.DATA_DIR || "./data"),
     retellApiKey: env.RETELL_API_KEY || "",
@@ -51,6 +49,5 @@ export function safeConfigSummary(config) {
     telegramConfigured: Boolean(
       config.telegramBotToken && config.telegramChatId,
     ),
-    dashboardProtected: Boolean(config.dashboardPassword),
   };
 }

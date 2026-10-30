@@ -89,7 +89,7 @@ If the call is not a repair booking or a warranty company, but the caller has a 
 
 ## Closing
 
-After the request or message is handled, ask if there is anything else. If not, give a short, warm goodbye and call `end_call`.
+After the request or message is handled, ask if there is anything else. If the caller says no or is finished, give one short, warm goodbye and immediately call `end_call` in the same turn. Do not ask another question after the goodbye.
 
 Do not keep the caller on the line to fill silence. Do not end the call before the tool result comes back.
 

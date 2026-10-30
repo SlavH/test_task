@@ -1,4 +1,3 @@
-import crypto from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import express from "express";
@@ -49,44 +48,6 @@ function setSecurityHeaders(req, res, next) {
     ].join("; "),
   );
   next();
-}
-
-function constantEqual(left, right) {
-  const a = Buffer.from(String(left));
-  const b = Buffer.from(String(right));
-  if (a.length !== b.length) return false;
-  return crypto.timingSafeEqual(a, b);
-}
-
-function basicAuth(config) {
-  return (req, res, next) => {
-    if (!config.dashboardPassword) return next();
-    if (
-      req.path === "/healthz" ||
-      req.path.startsWith("/api/retell/") ||
-      req.path.startsWith("/api/retell-proxy/") ||
-      req.path === "/favicon.ico" ||
-      req.path === "/favicon.svg"
-    ) {
-      return next();
-    }
-    const header = req.headers.authorization || "";
-    const match = /^Basic\s+(.+)$/i.exec(header);
-    if (match) {
-      const decoded = Buffer.from(match[1], "base64").toString("utf8");
-      const separator = decoded.indexOf(":");
-      const user = decoded.slice(0, separator);
-      const password = decoded.slice(separator + 1);
-      if (
-        constantEqual(user, config.dashboardUser) &&
-        constantEqual(password, config.dashboardPassword)
-      ) {
-        return next();
-      }
-    }
-    res.setHeader("WWW-Authenticate", 'Basic realm="FixCall Inbox"');
-    return res.status(401).send("Authentication required");
-  };
 }
 
 function verifyWebhook(req, config, rawBody) {
@@ -149,7 +110,6 @@ export function createApp({
   app.disable("x-powered-by");
   app.set("trust proxy", 1);
   app.use(setSecurityHeaders);
-  app.use(basicAuth(config));
 
   app.get("/healthz", (req, res) => {
     res.setHeader("Cache-Control", "no-store");

@@ -12,7 +12,7 @@ import { formatTelegram } from "../src/telegram.mjs";
 
 const API_KEY = "key_test_fixcall";
 
-async function harness({ dashboardPassword = "", allowUnsigned = false } = {}) {
+async function harness({ allowUnsigned = false } = {}) {
   const dir = await mkdtemp(path.join(tmpdir(), "fixcall-test-"));
   const config = {
     ...loadConfig({}),
@@ -23,8 +23,6 @@ async function harness({ dashboardPassword = "", allowUnsigned = false } = {}) {
     retellAgentId: "agent_test",
     telegramBotToken: "",
     telegramChatId: "",
-    dashboardUser: "admin",
-    dashboardPassword,
     allowUnsignedRetell: allowUnsigned,
     finalizeOrphans: false,
     webCallRateLimit: 100,
@@ -131,7 +129,7 @@ function standardArgs(overrides = {}) {
 }
 
 test("health endpoint responds without auth", async (t) => {
-  const h = await harness({ dashboardPassword: "secret" });
+  const h = await harness();
   t.after(() => h.close());
   const { response, json } = await h.request("/healthz");
   assert.equal(response.status, 200);
@@ -402,19 +400,6 @@ test("invalid Retell signature is rejected", async (t) => {
     headers: { "x-retell-signature": "v=1,d=deadbeef" },
   });
   assert.equal(response.status, 401);
-});
-
-test("dashboard password protects calls and static files", async (t) => {
-  const h = await harness({ dashboardPassword: "s3cret" });
-  t.after(() => h.close());
-  const denied = await h.request("/api/notifications");
-  assert.equal(denied.response.status, 401);
-  const allowed = await h.request("/api/notifications", {
-    headers: {
-      Authorization: `Basic ${Buffer.from("admin:s3cret").toString("base64")}`,
-    },
-  });
-  assert.equal(allowed.response.status, 200);
 });
 
 test("telegram formatting includes the useful call facts", () => {

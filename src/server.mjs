@@ -25,9 +25,6 @@ const server = app.listen(config.port, () => {
   if (!config.retellAgentId) {
     console.warn("RETELL_AGENT_ID is not set; browser calls are disabled.");
   }
-  if (!config.dashboardPassword) {
-    console.warn("DASHBOARD_PASSWORD is empty; the dashboard is unprotected.");
-  }
   if (config.finalizeOrphans) {
     notificationService
       .reconcile()
