@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { createApp } from "../src/app.mjs";
+import { createApp } from "../src/httpApp.mjs";
 import { loadConfig } from "../src/config.mjs";
 import { NotificationService, EventBus } from "../src/notifications.mjs";
 import { signRetellBody } from "../src/retell.mjs";

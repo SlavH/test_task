@@ -1,4 +1,4 @@
-import { createApp } from "./app.mjs";
+import { createApp } from "./httpApp.mjs";
 import { loadConfig } from "./config.mjs";
 import { createPool, closePool } from "./db.mjs";
 import { EventBus, NotificationService } from "./notifications.mjs";

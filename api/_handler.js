@@ -1,7 +1,7 @@
 import { loadConfig } from "../src/config.mjs";
 import { createPool } from "../src/db.mjs";
 import { Store } from "../src/store.mjs";
-import { createApp } from "../src/app.mjs";
+import { createApp } from "../src/httpApp.mjs";
 import { EventBus, NotificationService } from "../src/notifications.mjs";
 
 let appPromise;

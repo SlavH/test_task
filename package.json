@@ -12,7 +12,7 @@
     "dev": "node --watch src/server.mjs",
     "build": "esbuild web/voice-call.js --bundle --format=iife --global-name=FixCallVoice --outfile=public/voice-call.js --minify",
     "test": "node --test tests/*.test.mjs",
-    "check": "node --check src/server.mjs && node --check src/app.mjs && node --check web/voice-call.js && node --check public/app.js",
+    "check": "node --check src/server.mjs && node --check src/httpApp.mjs && node --check web/voice-call.js && node --check public/app.js",
     "provision": "node scripts/provision-retell.mjs",
     "seed:demo": "node scripts/seed-demo.mjs",
     "migrate": "node scripts/migrate.mjs",
