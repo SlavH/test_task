@@ -116,6 +116,18 @@ export async function renderPersonaPrompt(persona = {}) {
   return `${basePrompt}\n\n${personaInstructions(persona)}`;
 }
 
+
+async function configurePhoneNumber(config, agentId, version, baseUrl) {
+  const phoneNumber = (config.retellPhoneNumber || "").trim();
+  if (!phoneNumber) return null;
+  const agents = [{ agent_id: agentId, agent_version: version, weight: 1 }];
+  return retellRequest(config, "PATCH", `/update-phone-number/${encodeURIComponent(phoneNumber)}`, {
+    inbound_agents: agents,
+    outbound_agents: agents,
+    nickname: "FixCall Receptionist",
+  });
+}
+
 export async function provisionAgent({ config, store = null, baseUrl = null }) {
   const resolvedBaseUrl = (baseUrl || config.publicBaseUrl).replace(/\/+$/, "");
   if (!config.retellApiKey) throw new Error("RETELL_API_KEY is required");
@@ -203,6 +215,11 @@ export async function provisionAgent({ config, store = null, baseUrl = null }) {
   const version = Number(agent.version ?? 0);
   await retellRequest(config, "POST", `/publish-agent-version/${agent.agent_id}`, { version });
 
+  let phoneConfiguration = null;
+  if (config.retellPhoneNumber) {
+    phoneConfiguration = await configurePhoneNumber(config, agent.agent_id, version, resolvedBaseUrl);
+  }
+
   const state = {
     agent_id: agent.agent_id,
     llm_id: llmId,
@@ -210,13 +227,15 @@ export async function provisionAgent({ config, store = null, baseUrl = null }) {
     base_url: resolvedBaseUrl,
     action,
     provisioned_at: new Date().toISOString(),
+    phone_number: config.retellPhoneNumber || null,
+    phone_configured: Boolean(phoneConfiguration),
   };
   await fs.mkdir(config.dataDir, { recursive: true });
   await fs.writeFile(path.join(config.dataDir, "retell-provisioning.json"), JSON.stringify(state, null, 2));
 
   if (store) {
     await store.markPersonaApplied(version);
-    await store.addAudit("agent_provisioned", { agent_id: agent.agent_id, version, action });
+    await store.addAudit("agent_provisioned", { agent_id: agent.agent_id, version, action, phone_number: config.retellPhoneNumber || null });
   }
 
   return { ...state, version };

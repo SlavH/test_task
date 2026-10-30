@@ -76,6 +76,7 @@ npm test
 | --- | --- | --- |
 | `RETELL_API_KEY` | Yes | Retell server API key. Never expose to the browser. |
 | `RETELL_AGENT_ID` | Yes | Agent created by `npm run provision`. |
+| `RETELL_PHONE_NUMBER` | For phone calls | Retell phone number to bind to the latest agent version during provisioning. |
 | `PUBLIC_BASE_URL` | Production | Public HTTPS URL for tools, webhook, and Telegram links. Falls back to `RENDER_EXTERNAL_URL`. |
 | `DATABASE_URL` | Yes | PostgreSQL connection string. |
 | `TELEGRAM_BOT_TOKEN` | For notifications | Telegram bot token. |
@@ -161,7 +162,7 @@ The **Test the voice agent** button starts a real Retell web call from the brows
 - Browser calls are rate-limited per IP.
 - The inbox updates when Retell sends `call_ended` and `call_analyzed`.
 
-No phone number was purchased. To move to real inbound calls, buy or port a number in Retell, attach it to the agent, and keep the same webhook and tool URLs.
+A Retell phone number is now attached to Grace for inbound and outbound calls: **(833) 593-4831** (`+18335934831`). Keep the same webhook and tool URLs when reprovisioning so the number stays bound to the latest agent version.
 
 ## Data and privacy
 

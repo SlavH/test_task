@@ -35,6 +35,7 @@ export function loadConfig(env = process.env) {
     dataDir: path.resolve(env.DATA_DIR || "./data"),
     retellApiKey: env.RETELL_API_KEY || "",
     retellAgentId: env.RETELL_AGENT_ID || "",
+    retellPhoneNumber: env.RETELL_PHONE_NUMBER || "",
     retellApiBase: (env.RETELL_API_BASE || "https://api.retellai.com").replace(
       /\/+$/,
       "",
