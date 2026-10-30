@@ -1,0 +1,28 @@
+{
+  "name": "fixcall-receptionist",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "FixCall AI voice receptionist with a Telegram-style call inbox",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/server.mjs",
+    "dev": "node --watch src/server.mjs",
+    "build": "esbuild web/voice-call.js --bundle --format=iife --global-name=FixCallVoice --outfile=public/voice-call.js --minify",
+    "test": "node --test tests/*.test.mjs",
+    "check": "node --check src/server.mjs && node --check src/app.mjs && node --check web/voice-call.js",
+    "provision": "node scripts/provision-retell.mjs",
+    "seed:demo": "node scripts/seed-demo.mjs",
+    "simulate": "node scripts/simulate-call.mjs"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "retell-client-js-sdk": "^3.0.3"
+  }
+}

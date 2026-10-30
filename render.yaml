@@ -1,0 +1,40 @@
+services:
+  - type: web
+    name: fixcall-inbox
+    runtime: docker
+    plan: starter
+    region: oregon
+    branch: main
+    autoDeploy: true
+    healthCheckPath: /healthz
+    disk:
+      name: fixcall-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATA_DIR
+        value: /var/data
+      - key: COMPANY_NAME
+        value: FixCall Appliance Repair
+      - key: TIMEZONE
+        value: America/Los_Angeles
+      - key: DASHBOARD_USER
+        value: admin
+      - key: DASHBOARD_PASSWORD
+        generateValue: true
+      - key: RETELL_API_KEY
+        sync: false
+      - key: RETELL_AGENT_ID
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        value: "666308997"
+      - key: ALLOW_UNSIGNED_RETELL
+        value: "false"
+      - key: FINALIZE_ORPHANS
+        value: "true"
+      - key: WEB_CALL_RATE_LIMIT
+        value: "5"

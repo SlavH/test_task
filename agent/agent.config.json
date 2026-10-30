@@ -1,0 +1,119 @@
+{
+  "agent_name": "FixCall - Grace",
+  "voice_id": "11labs-Grace",
+  "voice_model": "eleven_flash_v2_5",
+  "voice_speed": 0.97,
+  "enable_dynamic_voice_speed": true,
+  "responsiveness": 0.82,
+  "interruption_sensitivity": 0.88,
+  "enable_backchannel": true,
+  "backchannel_frequency": 0.7,
+  "backchannel_words": ["mm-hmm", "yeah", "right", "okay"],
+  "denoising_mode": "noise-cancellation",
+  "language": "en-US",
+  "max_call_duration_ms": 900000,
+  "end_call_after_silence_ms": 30000,
+  "webhook_timeout_ms": 10000,
+  "webhook_events": ["call_ended", "call_analyzed"],
+  "boosted_keywords": [
+    "FixCall",
+    "LG",
+    "Samsung",
+    "General Electric",
+    "GE",
+    "refrigerator",
+    "fridge",
+    "freezer",
+    "dishwasher",
+    "washer",
+    "washing machine",
+    "dryer",
+    "oven",
+    "range",
+    "stove",
+    "cooktop",
+    "microwave",
+    "warranty",
+    "home warranty",
+    "work order",
+    "American Home Shield",
+    "Choice Home Warranty",
+    "First American Home Warranty"
+  ],
+  "llm": {
+    "model": "gpt-5.6-terra",
+    "model_temperature": 0.35,
+    "begin_message": "Thanks for calling FixCall Appliance Repair, this is Grace. How can I help?"
+  },
+  "analysis_summary_prompt": "Summarize this call in 2-3 sentences for the repair office. Include who called, the appliance and issue if relevant, and the outcome. Only use facts stated in the call. Do not invent details.",
+  "post_call_analysis_model": "gpt-5.6-terra",
+  "post_call_analysis_data": [
+    {
+      "type": "system-presets",
+      "name": "call_summary",
+      "description": "Summarize the call in 2-3 sentences: who called, why, and the outcome."
+    },
+    {
+      "type": "enum",
+      "name": "call_type",
+      "description": "The type of call.",
+      "choices": ["standard", "warranty", "warranty_company", "spam", "other"]
+    },
+    {
+      "type": "string",
+      "name": "caller_name",
+      "description": "Caller's full name, if stated."
+    },
+    {
+      "type": "string",
+      "name": "callback_number",
+      "description": "Callback number the caller gave, if stated."
+    },
+    {
+      "type": "string",
+      "name": "company_name",
+      "description": "Home warranty company the caller represents, only for warranty company calls.",
+      "conditional_prompt": "Only for calls from a home warranty company."
+    },
+    {
+      "type": "string",
+      "name": "service_address",
+      "description": "Service address for the repair, if stated.",
+      "conditional_prompt": "Only for customer repair calls."
+    },
+    {
+      "type": "string",
+      "name": "appliance_type",
+      "description": "Appliance type, e.g. refrigerator, dryer, dishwasher.",
+      "conditional_prompt": "Only for appliance repair calls."
+    },
+    {
+      "type": "string",
+      "name": "brand",
+      "description": "Appliance brand, exactly as stated.",
+      "conditional_prompt": "Only for appliance repair calls."
+    },
+    {
+      "type": "string",
+      "name": "issue_description",
+      "description": "What the appliance is doing or the job details.",
+      "conditional_prompt": "Only for repair and warranty company calls."
+    },
+    {
+      "type": "boolean",
+      "name": "service_fee_accepted",
+      "description": "Whether the caller clearly agreed to the $99 service call fee.",
+      "conditional_prompt": "Only for standard, non-warranty customer calls."
+    },
+    {
+      "type": "boolean",
+      "name": "booked",
+      "description": "Whether a service call was successfully booked through the booking tool."
+    },
+    {
+      "type": "string",
+      "name": "notes",
+      "description": "Any other useful detail the office should know, if stated."
+    }
+  ]
+}
