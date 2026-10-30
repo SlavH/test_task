@@ -691,6 +691,11 @@ function bindUI() {
   if (elements.loginSubmit) {
     elements.loginSubmit.addEventListener("click", submitLogin);
   }
+  if (elements.loginPassword) {
+    elements.loginPassword.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") submitLogin();
+    });
+  }
 }
 
 let voiceController = null;
@@ -847,22 +852,10 @@ async function ensureAdmin() {
     const response = await fetch("/api/auth/status");
     const data = await response.json();
     if (!data.authEnabled || data.admin) return true;
-    if (elements.loginDialog) {
+    if (elements.loginDialog && !elements.loginDialog.open) {
       elements.loginDialog.showModal();
-      return false;
     }
-    const password = window.prompt("Admin password");
-    if (!password) return false;
-    const login = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password }),
-    });
-    if (!login.ok) {
-      showToast("Admin login failed");
-      return false;
-    }
-    return true;
+    return false;
   } catch {
     return true;
   }
@@ -943,33 +936,50 @@ async function previewPersona() {
 
 async function applyPersona() {
   elements.personaError.textContent = "";
-  elements.personaStatus.textContent = "Applying to agent...";
+  elements.personaStatus.textContent = "Saving and applying to agent...";
+  elements.personaApply.disabled = true;
   try {
-    const { csrf } = await personaPayload();
-    const response = await fetch("/api/admin/persona/apply", {
-      method: "POST",
-      headers: { "X-CSRF-Token": csrf },
+    const { csrf, body } = await personaPayload();
+    const saveResponse = await fetch("/api/admin/persona", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
+      body: JSON.stringify(body),
     });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "Apply failed");
-    elements.personaStatus.textContent = `Applied as version ${data.state?.version ?? ""}`;
+    const saveData = await saveResponse.json();
+    if (!saveResponse.ok) throw new Error(saveData.error || "Save failed");
+    const applyResponse = await fetch("/api/admin/persona/apply", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
+      body: JSON.stringify(body),
+    });
+    const applyData = await applyResponse.json();
+    if (!applyResponse.ok) throw new Error(applyData.error || "Apply failed");
+    elements.personaStatus.textContent = `Applied as version ${applyData.state?.version ?? ""}`;
     showToast("Persona applied to Grace");
   } catch (error) {
     elements.personaError.textContent = error.message;
     elements.personaStatus.textContent = "Apply failed";
+  } finally {
+    elements.personaApply.disabled = false;
   }
 }
 
-function openPersonaDialog() {
-  loadPersona();
-  elements.personaDialog.showModal();
+async function openPersonaDialog() {
+  const admin = await ensureAdmin();
+  if (!admin) {
+    if (elements.loginDialog && !elements.loginDialog.open) elements.loginDialog.showModal();
+    return;
+  }
+  await loadPersona();
+  if (!elements.personaDialog.open) elements.personaDialog.showModal();
 }
 
 async function init() {
   bindUI();
   const admin = await ensureAdmin();
-  if (!admin && elements.loginDialog) {
-    elements.loginDialog.showModal();
+  if (!admin) {
+    if (elements.loginDialog && !elements.loginDialog.open) elements.loginDialog.showModal();
+    return;
   }
   try {
     await loadConfig();

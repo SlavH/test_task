@@ -166,6 +166,9 @@ export async function provisionAgent({ config, store = null, baseUrl = null }) {
     analysis_summary_prompt: analysisSummaryPrompt,
   };
 
+  const lockClient = store ? await store.pool.connect() : null;
+  if (lockClient) await lockClient.query("SELECT pg_advisory_lock(424242)");
+  try {
   const existing = await (async () => {
     if (config.retellAgentId) {
       const agent = await optionalRequest(config, "GET", `/get-agent/${config.retellAgentId}`);
@@ -238,5 +241,11 @@ export async function provisionAgent({ config, store = null, baseUrl = null }) {
     await store.addAudit("agent_provisioned", { agent_id: agent.agent_id, version, action, phone_number: config.retellPhoneNumber || null });
   }
 
+  } finally {
+    if (lockClient) {
+      await lockClient.query("SELECT pg_advisory_unlock(424242)");
+      lockClient.release();
+    }
+  }
   return { ...state, version };
 }

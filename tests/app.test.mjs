@@ -14,7 +14,7 @@ import { formatTelegram } from "../src/telegram.mjs";
 
 const API_KEY = "key_test_fixcall";
 
-async function harness({ allowUnsigned = false } = {}) {
+async function harness({ allowUnsigned = false, dashboardPassword = "" } = {}) {
   const db = newDb();
   const { Pool } = db.adapters.createPg();
   const pool = new Pool();
@@ -29,6 +29,8 @@ async function harness({ allowUnsigned = false } = {}) {
     telegramBotToken: "",
     telegramChatId: "",
     allowUnsignedRetell: allowUnsigned,
+    dashboardPassword,
+    adminSessionSecret: "test-session-secret",
     finalizeOrphans: false,
     webCallRateLimit: 100,
   };
@@ -435,4 +437,84 @@ test("telegram formatting includes the useful call facts", () => {
   assert.match(text, /FC-123/);
   assert.match(text, /Open call details/);
   assert.doesNotMatch(text, /undefined|null/);
+});
+
+test("admin auth status reflects password protection", async (t) => {
+  const h = await harness({ dashboardPassword: "s3cret" });
+  t.after(() => h.close());
+  const status = await h.request("/api/auth/status");
+  assert.equal(status.json.authEnabled, true);
+  assert.equal(status.json.admin, false);
+
+  const login = await h.request("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ password: "wrong" }),
+  });
+  assert.equal(login.response.status, 401);
+
+  const ok = await h.request("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ password: "s3cret" }),
+  });
+  assert.equal(ok.response.status, 200);
+  assert.equal(ok.json.admin, true);
+  assert.ok(ok.json.csrf);
+
+  const cookie = ok.response.headers.get("set-cookie");
+  const admin = await h.request("/api/auth/status", {
+    headers: { Cookie: cookie.split(",")[0] },
+  });
+  assert.equal(admin.json.admin, true);
+});
+
+test("admin persona preview validates and renders", async (t) => {
+  const h = await harness();
+  t.after(() => h.close());
+  const csrf = await h.request("/api/auth/csrf");
+  const preview = await h.request("/api/admin/persona/preview", {
+    method: "POST",
+    headers: { "X-CSRF-Token": csrf.json.token },
+    body: JSON.stringify({
+      warmth: "warm",
+      taskFocus: "task_focused",
+      businessFacts: { hours: "Mon-Fri 8-5" },
+      promptAdditions: "Be extra concise.",
+    }),
+  });
+  assert.equal(preview.response.status, 200);
+  assert.match(preview.json.prompt, /Persona configuration/);
+  assert.match(preview.json.prompt, /Mon-Fri 8-5/);
+
+  const invalid = await h.request("/api/admin/persona/preview", {
+    method: "POST",
+    headers: { "X-CSRF-Token": csrf.json.token },
+    body: JSON.stringify({ businessFacts: "not json object" }),
+  });
+  assert.equal(invalid.response.status, 400);
+});
+
+test("admin notes, tags, and export work", async (t) => {
+  const h = await harness();
+  t.after(() => h.close());
+  const call = callWith({ id: "call_admin_1", transcript: standardTranscript() });
+  await h.signedPost("/api/retell/webhook", { event: "call_ended", call });
+
+  const note = await h.request("/api/admin/calls/call_admin_1/notes", {
+    method: "POST",
+    body: JSON.stringify({ note: "Called back and confirmed." }),
+  });
+  assert.equal(note.response.status, 201);
+
+  const notes = await h.request("/api/admin/calls/call_admin_1/notes");
+  assert.equal(notes.json.notes.length, 1);
+
+  const tag = await h.request("/api/admin/calls/call_admin_1/tags", {
+    method: "POST",
+    body: JSON.stringify({ tag: "priority" }),
+  });
+  assert.deepEqual(tag.json.tags, ["priority"]);
+
+  const exported = await h.request("/api/admin/export");
+  assert.equal(exported.response.status, 200);
+  assert.ok(Array.isArray(exported.json.notifications));
 });

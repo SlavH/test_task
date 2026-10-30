@@ -132,6 +132,30 @@ export function createApp({
     return res.status(403).json({ error: "csrf_failed" });
   }
 
+  function validatePersona(body) {
+    const warmth = ["warm", "professional", "casual"].includes(body?.warmth)
+      ? body.warmth
+      : "warm";
+    const taskFocus = ["task_focused", "balanced", "conversational"].includes(body?.taskFocus)
+      ? body.taskFocus
+      : "task_focused";
+    let businessFacts = {};
+    if (body?.businessFacts && typeof body.businessFacts === "object" && !Array.isArray(body.businessFacts)) {
+      businessFacts = body.businessFacts;
+    } else if (typeof body?.businessFacts === "string") {
+      try {
+        const parsed = JSON.parse(body.businessFacts || "{}");
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) businessFacts = parsed;
+      } catch {
+        return { ok: false, error: "invalid_business_facts" };
+      }
+    } else if (body?.businessFacts !== undefined && body?.businessFacts !== null) {
+      return { ok: false, error: "invalid_business_facts" };
+    }
+    const promptAdditions = String(body?.promptAdditions || "").slice(0, 4000);
+    return { ok: true, persona: { warmth, taskFocus, businessFacts, promptAdditions } };
+  }
+
   app.get("/healthz", (req, res) => {
     res.setHeader("Cache-Control", "no-store");
     res.json({
@@ -250,35 +274,26 @@ export function createApp({
   }));
 
   app.put("/api/admin/persona", requireAdmin, requireCsrf, asyncRoute(async (req, res) => {
-    const warmth = ["warm", "professional", "casual"].includes(req.body?.warmth)
-      ? req.body.warmth
-      : "warm";
-    const taskFocus = ["task_focused", "balanced", "conversational"].includes(req.body?.taskFocus)
-      ? req.body.taskFocus
-      : "task_focused";
-    const persona = await store.savePersonaConfig({
-      warmth,
-      taskFocus,
-      businessFacts: req.body?.businessFacts || {},
-      promptAdditions: String(req.body?.promptAdditions || "").slice(0, 4000),
-    });
-    await store.addAudit("persona_updated", { warmth, taskFocus });
+    const validated = validatePersona(req.body || {});
+    if (!validated.ok) return res.status(400).json({ error: validated.error });
+    const persona = await store.savePersonaConfig(validated.persona);
+    await store.addAudit("persona_updated", { warmth: persona.warmth, taskFocus: persona.taskFocus });
     res.json({ persona });
   }));
 
   app.post("/api/admin/persona/preview", requireAdmin, requireCsrf, asyncRoute(async (req, res) => {
-    const persona = {
-      warmth: req.body?.warmth || "warm",
-      taskFocus: req.body?.taskFocus || "task_focused",
-      businessFacts: req.body?.businessFacts || {},
-      promptAdditions: String(req.body?.promptAdditions || "").slice(0, 4000),
-    };
+    const validated = validatePersona(req.body || {});
+    if (!validated.ok) return res.status(400).json({ error: validated.error });
     const { renderPersonaPrompt } = await import("./provision.mjs");
-    const prompt = await renderPersonaPrompt(persona);
-    res.json({ ok: true, persona, prompt });
+    const prompt = await renderPersonaPrompt(validated.persona);
+    res.json({ ok: true, persona: validated.persona, prompt });
   }));
 
   app.post("/api/admin/persona/apply", requireAdmin, requireCsrf, asyncRoute(async (req, res) => {
+    const validated = validatePersona(req.body || {});
+    if (!validated.ok) return res.status(400).json({ error: validated.error });
+    await store.savePersonaConfig(validated.persona);
+    await store.addAudit("persona_updated", { warmth: validated.persona.warmth, taskFocus: validated.persona.taskFocus });
     const state = await provisionAgent({ config, store });
     res.json({ ok: true, state });
   }));
