@@ -64,6 +64,7 @@ function basicAuth(config) {
     if (
       req.path === "/healthz" ||
       req.path.startsWith("/api/retell/") ||
+      req.path.startsWith("/api/retell-proxy/") ||
       req.path === "/favicon.ico" ||
       req.path === "/favicon.svg"
     ) {
