@@ -19,6 +19,8 @@
     "simulate": "node scripts/simulate-call.mjs"
   },
   "dependencies": {
+    "@upstash/ratelimit": "^2.2.0",
+    "@upstash/redis": "^1.40.0",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "pg": "^8.23.1",

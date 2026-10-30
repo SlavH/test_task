@@ -1,0 +1,8 @@
+{
+  "buildCommand": "npm run build && npm run migrate",
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 60
+    }
+  }
+}

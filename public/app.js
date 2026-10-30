@@ -575,6 +575,9 @@ function selectCall(callId) {
   renderFeed();
   renderDetail();
   elements.detail.classList.add("is-open");
+  requestAnimationFrame(() => {
+    elements.detail.scrollTo({ top: 0, behavior: "smooth" });
+  });
   const url = new URL(window.location.href);
   url.searchParams.set("call", callId);
   window.history.replaceState({}, "", url);
@@ -591,34 +594,18 @@ function closeDetail() {
 }
 
 function connectEvents() {
-  if (state.eventSource) state.eventSource.close();
-  const source = new EventSource("/api/events");
-  state.eventSource = source;
-  source.onopen = () => setConnection(true, "Live feed");
-  source.onerror = () => setConnection(false, "Reconnecting");
-  source.addEventListener("notification", (event) => {
+  if (state.pollTimer) clearInterval(state.pollTimer);
+  setConnection(true, "Live feed");
+  state.pollTimer = setInterval(async () => {
     try {
-      const notification = JSON.parse(event.data);
-      const index = state.notifications.findIndex(
-        (item) => item.call_id === notification.call_id,
-      );
-      const isNew = index === -1;
-      if (index === -1) state.notifications.unshift(notification);
-      else state.notifications[index] = notification;
-      state.notifications.sort(
-        (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
-      );
-      state.stats = computeStats();
-      state.known.add(notification.call_id);
-      render();
-      if (isNew) {
-        showToast(
-          `New call: ${notification.callerName} · ${typeLabel(notification.type)}`,
-        );
-      }
-      if (state.selected === notification.call_id) renderDetail();
+      await loadNotifications({ silent: true });
     } catch {
-      // Ignore malformed events.
+      setConnection(false, "Reconnecting");
+    }
+  }, 5000);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      loadNotifications({ silent: true }).catch(() => setConnection(false, "Reconnecting"));
     }
   });
 }

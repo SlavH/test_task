@@ -51,8 +51,8 @@ export function parseCookies(header = "") {
   return cookies;
 }
 
-export function sessionCookie(token, secretIgnored) {
-  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000`;
+export function sessionCookie(token, { secure = false } = {}) {
+  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000${secure ? "; Secure" : ""}`;
 }
 
 export function clearSessionCookie() {

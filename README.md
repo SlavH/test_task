@@ -164,6 +164,19 @@ The **Test the voice agent** button starts a real Retell web call from the brows
 
 A Retell phone number is now attached to Grace for inbound and outbound calls: **(833) 593-4831** (`+18335934831`). Keep the same webhook and tool URLs when reprovisioning so the number stays bound to the latest agent version.
 
+
+
+## Deploying to Vercel
+
+1. Create a Supabase project and copy both the pooled and direct connection strings.
+2. Add the environment variables listed above in Vercel.
+3. Set `PUBLIC_BASE_URL` to the Vercel production URL.
+4. Deploy. Vercel runs `npm run build && npm run migrate`.
+5. For Retell, set `RETELL_PHONE_NUMBER` and run `PUBLIC_BASE_URL=https://your-app.vercel.app npm run provision` locally.
+6. The browser inbox uses 5-second polling instead of SSE for Vercel compatibility.
+
+Use Vercel Pro if you need the 60-second function limit for admin provisioning. On Hobby, run provisioning locally against the production URL.
+
 ## Data and privacy
 
 The JSON store is written atomically to `DATA_DIR/state.json`. It contains caller names, callback numbers, addresses, issue descriptions, transcripts, and booking IDs. Admin access uses a signed session cookie. Store PostgreSQL credentials and admin secrets in environment variables only.

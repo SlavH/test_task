@@ -4,7 +4,7 @@ import { createPool, closePool } from "../src/db.mjs";
 import { runMigrations } from "../src/db.mjs";
 
 const config = loadConfig();
-const pool = createPool(config);
+const pool = createPool({ databaseUrl: config.migrationDatabaseUrl });
 try {
   await runMigrations(pool);
   console.log("Migrations applied.");

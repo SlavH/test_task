@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import express from "express";
 import { createSessionToken, verifySessionToken, parseCookies, sessionCookie, clearSessionCookie, csrfCookie, readCsrf, constantTimePasswordMatch, CSRF_COOKIE } from "./auth.mjs";
 import { provisionAgent } from "./provision.mjs";
+import { createRateLimiter } from "./rateLimit.mjs";
 import {
   cleanString,
   validateBooking,
@@ -73,26 +74,6 @@ function parseJson(rawBody) {
   } catch {
     return { ok: false };
   }
-}
-
-function createRateLimiter(limit, windowMs = 60_000) {
-  const hits = new Map();
-  return (req, res, next) => {
-    const key = req.ip || req.socket.remoteAddress || "unknown";
-    const now = Date.now();
-    const list = (hits.get(key) || []).filter((time) => now - time < windowMs);
-    if (list.length >= limit) {
-      res.setHeader("Retry-After", Math.ceil(windowMs / 1000));
-      return res.status(429).json({
-        error: "rate_limited",
-        message: "Too many demo calls. Please wait a minute and try again.",
-      });
-    }
-    list.push(now);
-    hits.set(key, list);
-    if (hits.size > 5000) hits.clear();
-    next();
-  };
 }
 
 const TOOL_DEFINITIONS = {
@@ -259,7 +240,7 @@ export function createApp({
     }
     const token = createSessionToken(config.adminSessionSecret);
     const { token: csrf, cookie: csrfCookieValue } = csrfCookie();
-    res.setHeader("Set-Cookie", [sessionCookie(token), csrfCookieValue]);
+    res.setHeader("Set-Cookie", [sessionCookie(token, { secure: config.publicBaseUrl.startsWith("https://") }), csrfCookieValue]);
     return res.json({ ok: true, admin: true, csrf });
   }));
 
@@ -537,7 +518,7 @@ export function createApp({
 
   app.post(
     "/api/web-call",
-    createRateLimiter(config.webCallRateLimit),
+    createRateLimiter(config),
     asyncRoute(async (req, res) => {
       if (!config.retellAgentId || !config.retellApiKey) {
         return res.status(503).json({
