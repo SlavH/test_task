@@ -7,11 +7,19 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const migrationsDir = path.resolve(__dirname, "..", "migrations");
 
 export function createPool(config = {}) {
-  const connectionString =
+  const rawConnectionString =
     config.databaseUrl || process.env.DATABASE_URL || "";
-  if (!connectionString) {
+  if (!rawConnectionString) {
     throw new Error("DATABASE_URL is required");
   }
+
+  // pg-connection-string turns sslmode into an ssl object that can override the
+  // ssl option passed below. Remove it so certificate verification can be
+  // disabled consistently for Supabase and other managed databases.
+  const url = new URL(rawConnectionString);
+  url.searchParams.delete("sslmode");
+  const connectionString = url.toString();
+
   const ssl =
     config.ssl ??
     (connectionString.includes("sslmode=require") ||
@@ -19,6 +27,7 @@ export function createPool(config = {}) {
     process.env.NODE_ENV === "production"
       ? { rejectUnauthorized: false }
       : false);
+
   return new Pool({
     connectionString,
     ssl,
