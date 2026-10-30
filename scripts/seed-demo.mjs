@@ -1,10 +1,14 @@
 import "dotenv/config";
 import { loadConfig } from "../src/config.mjs";
 import { buildNotification } from "../src/domain.mjs";
+import { createPool } from "../src/db.mjs";
+import { runMigrations } from "../src/db.mjs";
 import { Store } from "../src/store.mjs";
 
 const config = loadConfig();
-const store = await new Store({ dataDir: config.dataDir }).init();
+const pool = createPool(config);
+await runMigrations(pool);
+const store = await new Store({ pool }).init();
 
 const now = Date.now();
 const minute = 60_000;
@@ -239,8 +243,11 @@ for (const demo of demos) {
   notification.source = "demo";
   notification.createdAt = new Date(ended).toISOString();
   notification.updatedAt = new Date(ended).toISOString();
+  await store.upsertCall(call);
+  if (booking) await store.saveBooking(booking);
+  if (message) await store.saveMessage(message);
   notification.telegramStatus = "skipped";
   await store.saveNotification(notification);
 }
 
-console.log(`Seeded ${demos.length} demo calls into ${store.filePath}`);
+console.log(`Seeded ${demos.length} demo calls into ${config.databaseUrl}`);
