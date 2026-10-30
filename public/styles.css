@@ -1405,3 +1405,109 @@ h1 {
     width: 100vw;
   }
 }
+
+.call-card-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 26px 24px 22px;
+}
+
+.call-card-inner h2 {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: -0.04em;
+}
+
+.call-card-inner label.call-name {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  margin: 0;
+}
+
+.call-card-inner .call-name span {
+  color: #8ca29c;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.call-card-inner .call-name input,
+.call-card-inner .call-name select,
+.call-card-inner .call-name textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  outline: 0;
+  background: rgba(255, 255, 255, 0.045);
+  color: #eef5f2;
+  font-size: 12px;
+  resize: vertical;
+}
+
+.call-card-inner .call-name select {
+  min-height: 38px;
+}
+
+.call-card-inner .call-name textarea {
+  min-height: 88px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  line-height: 1.45;
+}
+
+.call-card-inner .call-name input:focus,
+.call-card-inner .call-name select:focus,
+.call-card-inner .call-name textarea:focus {
+  border-color: rgba(95, 212, 168, 0.55);
+}
+
+.button {
+  flex: 1;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: filter 120ms ease, transform 120ms ease;
+}
+
+.button.primary {
+  background: linear-gradient(145deg, #35a98b, #147464);
+  color: #f1fff9;
+}
+
+.button.secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: #eef5f2;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.button:hover {
+  filter: brightness(1.06);
+}
+
+#persona-preview-output {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.18);
+  color: #cfe0da;
+  font-size: 11px;
+  line-height: 1.45;
+  max-height: 240px;
+  overflow: auto;
+}
+
+#login-dialog .call-card-inner {
+  align-items: stretch;
+}
+
+#login-dialog .call-actions {
+  justify-content: flex-end;
+}
