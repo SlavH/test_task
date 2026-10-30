@@ -1,8 +1,11 @@
+import express from "express";
 import { loadConfig } from "./config.mjs";
 import { createPool } from "./db.mjs";
 import { Store } from "./store.mjs";
 import { createApp } from "./httpApp.mjs";
 import { EventBus, NotificationService } from "./notifications.mjs";
+
+void express;
 
 export const config = {
   maxDuration: 60,
