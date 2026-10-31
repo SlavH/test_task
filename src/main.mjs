@@ -21,6 +21,35 @@ const app = createApp({
   eventBus,
 });
 
+async function registerTelegramWebhook() {
+  try {
+    if (!config.telegramBotToken) return;
+    if (!config.publicBaseUrl || !config.publicBaseUrl.startsWith("https://")) return;
+    const url = `${config.publicBaseUrl.replace(/\/+$/, "")}/api/telegram/webhook`;
+    const body = { url };
+    if (config.telegramWebhookSecret) {
+      body.secret_token = config.telegramWebhookSecret;
+    }
+    const response = await fetch(
+      `https://api.telegram.org/bot${config.telegramBotToken}/setWebhook`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(10000),
+      },
+    );
+    const data = await response.json().catch(() => null);
+    if (data?.ok) {
+      console.log("Telegram webhook registered");
+    } else if (data) {
+      console.warn(`Telegram webhook registration failed: ${data.description || "unknown"}`);
+    }
+  } catch (error) {
+    console.warn("Telegram webhook registration error:", error.message);
+  }
+}
+
 const server = app.listen(config.port, () => {
   console.log(`FixCall inbox listening on ${config.publicBaseUrl}`);
   console.log(`Health check: ${config.publicBaseUrl}/healthz`);
@@ -35,6 +64,7 @@ const server = app.listen(config.port, () => {
       .reconcile()
       .catch((error) => console.error("Reconcile failed", error));
   }
+  registerTelegramWebhook();
 });
 
 function shutdown(signal) {
