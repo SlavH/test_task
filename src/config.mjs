@@ -65,6 +65,7 @@ export function loadConfig(env = process.env) {
     webCallRateLimit: number(env.WEB_CALL_RATE_LIMIT, 5),
     finalizeOrphans: bool(env.FINALIZE_ORPHANS, true),
     maxWebCallNameLength: 80,
+    telegramWebhookSecret: env.TELEGRAM_WEBHOOK_SECRET || "",
   };
 }
 

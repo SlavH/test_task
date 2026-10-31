@@ -16,6 +16,7 @@ import {
   verifyRetellBody,
 } from "./retell.mjs";
 import { statsForNotifications } from "./store.mjs";
+import { answerTelegramCommand, sendTelegramMessage } from "./telegram.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.resolve(__dirname, "..", "public");
@@ -150,6 +151,7 @@ export function createApp({
   app.use("/api/retell/tools", express.raw({ type: "application/json", limit: "2mb" }));
   app.use("/api/retell", express.raw({ type: "application/json", limit: "2mb" }));
   app.use("/api/retell-proxy", express.raw({ type: "*/*", limit: "2mb" }));
+  app.use("/api/telegram/webhook", express.raw({ type: "application/json", limit: "1mb" }));
   app.use(express.json({ limit: "128kb" }));
   app.use((req, res, next) => {
     if (req.path.startsWith("/api/")) {
@@ -512,6 +514,64 @@ export function createApp({
         analysis,
       });
       await store.markEventProcessed(eventKey);
+      return res.json({ ok: true });
+    }),
+  );
+
+  app.post(
+    "/api/telegram/webhook",
+    asyncRoute(async (req, res) => {
+      if (config.telegramWebhookSecret) {
+        const header = req.get("x-telegram-bot-api-secret-token") || "";
+        if (header !== config.telegramWebhookSecret) {
+          return res.status(401).json({ error: "invalid_secret" });
+        }
+      }
+      const rawBody = Buffer.isBuffer(req.body)
+        ? req.body.toString("utf8")
+        : String(req.body || "");
+      let update = {};
+      try {
+        update = JSON.parse(rawBody || "{}");
+      } catch {
+        return res.status(400).json({ error: "invalid_json" });
+      }
+      const cmd = await answerTelegramCommand({ config, update });
+      if (cmd?.command === "start") {
+        try {
+          await store.upsertTelegramSubscriber({
+            chatId: cmd.chatId,
+            username: cmd.from?.username || cmd.chat?.username || null,
+            firstName: cmd.from?.first_name || cmd.chat?.first_name || null,
+            lastName: cmd.from?.last_name || cmd.chat?.last_name || null,
+          });
+          await store.addAudit("telegram_subscribed", { chatId: cmd.chatId });
+        } catch (error) {
+          logger.error("Failed to subscribe telegram user", error);
+        }
+        await sendTelegramMessage(
+          config,
+          cmd.chatId,
+          "✅ You're subscribed to FixCall alerts.\n\nYou'll receive notifications for new calls here. Send /stop to unsubscribe.",
+          { parseMode: "HTML" },
+        );
+        return res.json({ ok: true });
+      }
+      if (cmd?.command === "stop") {
+        try {
+          await store.deactivateTelegramSubscriber(cmd.chatId);
+          await store.addAudit("telegram_unsubscribed", { chatId: cmd.chatId });
+        } catch (error) {
+          logger.error("Failed to unsubscribe telegram user", error);
+        }
+        await sendTelegramMessage(
+          config,
+          cmd.chatId,
+          "You've been unsubscribed from FixCall alerts. Send /start to subscribe again.",
+          { parseMode: "HTML" },
+        );
+        return res.json({ ok: true });
+      }
       return res.json({ ok: true });
     }),
   );

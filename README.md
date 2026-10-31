@@ -81,7 +81,8 @@ npm test
 | `DATABASE_URL` | Yes | PostgreSQL connection string (pooled). |
 | `MIGRATION_DATABASE_URL` | No | Direct/non-pooling connection used by `npm run migrate`. Falls back to `DATABASE_URL`. |
 | `TELEGRAM_BOT_TOKEN` | For notifications | Telegram bot token. |
-| `TELEGRAM_CHAT_ID` | For notifications | Target chat or user ID(s). Can be comma- or space-separated for multiple recipients. |
+| `TELEGRAM_CHAT_ID` | For notifications | Target chat or user ID(s). Can be comma- or space-separated for multiple recipients. Also supports `/start` subscriptions. |
+| `TELEGRAM_WEBHOOK_SECRET` | No | Secret token for `POST /api/telegram/webhook` (set via `setWebhook` with `secret_token`). |
 | `DASHBOARD_PASSWORD` | Production | Shared admin password. Leave empty for local development to disable auth. |
 | `ADMIN_SESSION_SECRET` | Production | Secret used to sign admin sessions. Falls back to `DASHBOARD_PASSWORD`. |
 | `DASHBOARD_TITLE` | No | Inbox title. Defaults to `FixCall Inbox`. |
@@ -210,6 +211,7 @@ Call recordings are linked only when Retell returns a recording URL. Access to R
 | `POST /api/retell/tools/take-warranty-message` | Signed custom tool. |
 | `POST /api/retell/tools/take-message` | Signed custom tool. |
 | `POST /api/retell/webhook` | Signed Retell call webhook. |
+| `POST /api/telegram/webhook` | Telegram Bot updates webhook (handles `/start` and `/stop` subscriptions). |
 | `ALL /api/retell-proxy/*` | Same-origin WebRTC signaling proxy for the browser SDK. |
 | `GET /api/auth/status` | Admin auth status. |
 | `POST /api/auth/login` | Admin login. |

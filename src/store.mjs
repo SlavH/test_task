@@ -456,6 +456,58 @@ export class Store {
     );
   }
 
+  async listActiveTelegramSubscribers() {
+    const result = await this.pool.query(
+      "SELECT chat_id, username, first_name, last_name FROM telegram_subscribers WHERE active = TRUE ORDER BY subscribed_at ASC",
+    );
+    return result.rows.map((row) => ({
+      chatId: row.chat_id,
+      username: row.username,
+      firstName: row.first_name,
+      lastName: row.last_name,
+    }));
+  }
+
+  async upsertTelegramSubscriber({ chatId, username, firstName, lastName }) {
+    if (!chatId) return null;
+    await this.pool.query(
+      `INSERT INTO telegram_subscribers (chat_id, username, first_name, last_name, active, subscribed_at, unsubscribed_at, updated_at)
+       VALUES ($1, $2, $3, $4, TRUE, NOW(), NULL, NOW())
+       ON CONFLICT (chat_id) DO UPDATE SET
+         username = EXCLUDED.username,
+         first_name = EXCLUDED.first_name,
+         last_name = EXCLUDED.last_name,
+         active = TRUE,
+         unsubscribed_at = NULL,
+         updated_at = NOW()`,
+      [String(chatId), username || null, firstName || null, lastName || null],
+    );
+    return { chatId: String(chatId) };
+  }
+
+  async deactivateTelegramSubscriber(chatId) {
+    if (!chatId) return null;
+    await this.pool.query(
+      `UPDATE telegram_subscribers
+       SET active = FALSE, unsubscribed_at = NOW(), updated_at = NOW()
+       WHERE chat_id = $1`,
+      [String(chatId)],
+    );
+    return { chatId: String(chatId) };
+  }
+
+  async markTelegramSubscriberInactive(chatId) {
+    if (!chatId) return null;
+    await this.pool.query(
+      `UPDATE telegram_subscribers
+       SET active = FALSE, unsubscribed_at = COALESCE(unsubscribed_at, NOW()), updated_at = NOW()
+       WHERE chat_id = $1 AND active = TRUE`,
+      [String(chatId)],
+    );
+    return { chatId: String(chatId) };
+  }
+}
+
   async exportData() {
     const [calls, bookings, messages, notifications, notes, tags, persona] =
       await Promise.all([

@@ -90,7 +90,7 @@ export class NotificationService {
   }
 
   async deliverTelegram(notification, hadExisting) {
-    const chatIds = Array.isArray(this.config.telegramChatIds) && this.config.telegramChatIds.length
+    const envChatIds = Array.isArray(this.config.telegramChatIds) && this.config.telegramChatIds.length
       ? this.config.telegramChatIds
       : (this.config.telegramChatId
         ? String(this.config.telegramChatId)
@@ -98,30 +98,62 @@ export class NotificationService {
             .map((id) => id.trim())
             .filter(Boolean)
         : []);
-    if (!this.config.telegramBotToken || chatIds.length === 0) {
+
+    let subscriberChatIds = [];
+    try {
+      if (this.store?.listActiveTelegramSubscribers) {
+        const subs = await this.store.listActiveTelegramSubscribers();
+        subscriberChatIds = subs.map((s) => s.chatId).filter(Boolean);
+      }
+    } catch {
+      // ignore
+    }
+
+    const allChatIds = [...new Set([...subscriberChatIds, ...envChatIds])];
+    if (!this.config.telegramBotToken || allChatIds.length === 0) {
       notification.telegramStatus = "skipped";
       await this.store.saveNotification(notification);
       return { ok: false, skipped: true, reason: "telegram_not_configured" };
     }
 
+    const deliveryConfig = { ...this.config, telegramChatIds: allChatIds, telegramChatId: allChatIds[0] };
+
     let result;
     if (hadExisting && notification.telegramMessageId) {
-      result = await editTelegram(notification, this.config);
+      result = await editTelegram(notification, deliveryConfig);
       notification.telegramStatus = result.ok ? "sent" : "edit_failed";
     } else {
-      result = await sendTelegram(notification, this.config);
+      result = await sendTelegram(notification, deliveryConfig);
       if (result.ok) {
         notification.telegramStatus = "sent";
-        notification.telegramMessageId = result.result?.message_id || null;
+        if (!notification.telegramMessageId && result.result?.message_id) {
+          notification.telegramMessageId = result.result.message_id;
+        }
       } else {
         notification.telegramStatus = "failed";
       }
     }
+
+    try {
+      if (result?.results && this.store?.markTelegramSubscriberInactive) {
+        for (const r of result.results) {
+          if (!r?.ok) {
+            const reason = String(r.reason || "");
+            if (reason.includes("bot was blocked") || reason.includes("chat not found") || reason.includes("user is deactivated") || reason.includes("Forbidden")) {
+              await this.store.markTelegramSubscriberInactive(r.chatId);
+            }
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+
     await this.store.saveNotification(notification);
     this.eventBus.broadcast("notification", notification);
     if (!result.ok && !result.skipped) {
       this.logger.error(
-        `Telegram delivery failed for ${notification.call_id}: ${result.reason}`,
+        `Telegram delivery failed for ${notification.call_id}: ${result.reason || "unknown"}`,
       );
     }
     return result;

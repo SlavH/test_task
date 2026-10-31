@@ -197,3 +197,36 @@ export async function editTelegram(notification, config) {
   }
   return { ok: results.some((r) => r.ok), results };
 }
+
+export async function sendTelegramMessage(config, chatId, text, options = {}) {
+  if (!config.telegramBotToken || !chatId) {
+    return { ok: false, reason: "not_configured" };
+  }
+  const body = {
+    text,
+    parse_mode: options.parseMode || "HTML",
+    disable_web_page_preview: options.disableWebPagePreview !== false,
+    ...(options.replyMarkup ? { reply_markup: options.replyMarkup } : {}),
+  };
+  return telegramCallForChat(config, "sendMessage", body, chatId);
+}
+
+export async function answerTelegramCommand({ config, update }) {
+  try {
+    const message = update?.message;
+    if (!message?.text) return;
+    const chat = message.chat;
+    const chatId = chat?.id;
+    if (!chatId) return;
+    const text = message.text.trim();
+    if (text.startsWith("/start")) {
+      return { command: "start", chatId, chat, from: message.from };
+    }
+    if (text.startsWith("/stop") || text.startsWith("/unsubscribe")) {
+      return { command: "stop", chatId, chat, from: message.from };
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
