@@ -90,7 +90,15 @@ export class NotificationService {
   }
 
   async deliverTelegram(notification, hadExisting) {
-    if (!this.config.telegramBotToken || !this.config.telegramChatId) {
+    const chatIds = Array.isArray(this.config.telegramChatIds) && this.config.telegramChatIds.length
+      ? this.config.telegramChatIds
+      : (this.config.telegramChatId
+        ? String(this.config.telegramChatId)
+            .split(/[\s,;]+/)
+            .map((id) => id.trim())
+            .filter(Boolean)
+        : []);
+    if (!this.config.telegramBotToken || chatIds.length === 0) {
       notification.telegramStatus = "skipped";
       await this.store.saveNotification(notification);
       return { ok: false, skipped: true, reason: "telegram_not_configured" };

@@ -81,7 +81,7 @@ npm test
 | `DATABASE_URL` | Yes | PostgreSQL connection string (pooled). |
 | `MIGRATION_DATABASE_URL` | No | Direct/non-pooling connection used by `npm run migrate`. Falls back to `DATABASE_URL`. |
 | `TELEGRAM_BOT_TOKEN` | For notifications | Telegram bot token. |
-| `TELEGRAM_CHAT_ID` | For notifications | Target chat or user ID. |
+| `TELEGRAM_CHAT_ID` | For notifications | Target chat or user ID(s). Can be comma- or space-separated for multiple recipients. |
 | `DASHBOARD_PASSWORD` | Production | Shared admin password. Leave empty for local development to disable auth. |
 | `ADMIN_SESSION_SECRET` | Production | Secret used to sign admin sessions. Falls back to `DASHBOARD_PASSWORD`. |
 | `DASHBOARD_TITLE` | No | Inbox title. Defaults to `FixCall Inbox`. |

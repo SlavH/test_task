@@ -53,6 +53,14 @@ export function loadConfig(env = process.env) {
     ),
     telegramBotToken: env.TELEGRAM_BOT_TOKEN || "",
     telegramChatId: env.TELEGRAM_CHAT_ID || "",
+    telegramChatIds: (() => {
+      const raw = env.TELEGRAM_CHAT_ID || "";
+      if (!raw) return [];
+      return String(raw)
+        .split(/[\s,;]+/)
+        .map((id) => id.trim())
+        .filter(Boolean);
+    })(),
     allowUnsignedRetell: bool(env.ALLOW_UNSIGNED_RETELL),
     webCallRateLimit: number(env.WEB_CALL_RATE_LIMIT, 5),
     finalizeOrphans: bool(env.FINALIZE_ORPHANS, true),

@@ -76,16 +76,26 @@ export function formatTelegram(notification, { publicBaseUrl } = {}) {
   return lines.filter(Boolean).join("\n").slice(0, 4000);
 }
 
-async function telegramCall(config, method, body) {
-  if (!config.telegramBotToken || !config.telegramChatId) {
-    return { ok: false, skipped: true, reason: "telegram_not_configured" };
+function getChatIds(config) {
+  if (Array.isArray(config.telegramChatIds) && config.telegramChatIds.length) {
+    return config.telegramChatIds;
   }
+  if (config.telegramChatId) {
+    return String(config.telegramChatId)
+      .split(/[\s,;]+/)
+      .map((id) => id.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+async function telegramCallForChat(config, method, body, chatId) {
   const response = await fetch(
     `https://api.telegram.org/bot${config.telegramBotToken}/${method}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ ...body, chat_id: chatId }),
       signal: AbortSignal.timeout(15000),
     },
   );
@@ -99,12 +109,32 @@ async function telegramCall(config, method, body) {
   return { ok: true, result: data.result };
 }
 
+async function telegramCall(config, method, body) {
+  const chatIds = getChatIds(config);
+  if (!config.telegramBotToken || chatIds.length === 0) {
+    return { ok: false, skipped: true, reason: "telegram_not_configured" };
+  }
+  const results = [];
+  for (const chatId of chatIds) {
+    results.push(await telegramCallForChat(config, method, body, chatId));
+  }
+  const success = results.find((r) => r.ok);
+  return {
+    ok: results.some((r) => r.ok),
+    result: success?.result || null,
+    results,
+  };
+}
+
 export async function sendTelegram(notification, config, { attempt = 0 } = {}) {
+  const chatIds = getChatIds(config);
+  if (!config.telegramBotToken || chatIds.length === 0) {
+    return { ok: false, skipped: true, reason: "telegram_not_configured" };
+  }
   const text = formatTelegram(notification, {
     publicBaseUrl: config.publicBaseUrl,
   });
-  const result = await telegramCall(config, "sendMessage", {
-    chat_id: config.telegramChatId,
+  const body = {
     text,
     parse_mode: "HTML",
     disable_web_page_preview: true,
@@ -120,8 +150,21 @@ export async function sendTelegram(notification, config, { attempt = 0 } = {}) {
           ],
         }
       : undefined,
-  });
-  if (!result.ok && !result.skipped && attempt < 1) {
+  };
+  const results = [];
+  for (const chatId of chatIds) {
+    results.push(await telegramCallForChat(config, "sendMessage", body, chatId));
+  }
+  const success = results.find((r) => r.ok);
+  if (success?.result?.message_id && !notification.telegramMessageId) {
+    notification.telegramMessageId = success.result.message_id;
+  }
+  const result = {
+    ok: results.some((r) => r.ok),
+    result: success?.result || null,
+    results,
+  };
+  if (!result.ok && attempt < 1) {
     await new Promise((resolve) => setTimeout(resolve, 1500));
     return sendTelegram(notification, config, { attempt: attempt + 1 });
   }
@@ -130,18 +173,27 @@ export async function sendTelegram(notification, config, { attempt = 0 } = {}) {
 
 export async function editTelegram(notification, config) {
   if (!notification.telegramMessageId) return { ok: false, reason: "no_message" };
+  const chatIds = getChatIds(config);
+  if (!config.telegramBotToken || chatIds.length === 0) {
+    return { ok: false, skipped: true, reason: "telegram_not_configured" };
+  }
   const text = formatTelegram(notification, {
     publicBaseUrl: config.publicBaseUrl,
   });
-  const result = await telegramCall(config, "editMessageText", {
-    chat_id: config.telegramChatId,
+  const body = {
     message_id: notification.telegramMessageId,
     text,
     parse_mode: "HTML",
     disable_web_page_preview: true,
-  });
-  if (!result.ok && /not modified/i.test(result.reason || "")) {
-    return { ok: true, unchanged: true };
+  };
+  const results = [];
+  for (const chatId of chatIds) {
+    const res = await telegramCallForChat(config, "editMessageText", body, chatId);
+    if (!res.ok && /not modified/i.test(res.reason || "")) {
+      results.push({ ok: true, unchanged: true, chatId });
+      continue;
+    }
+    results.push({ ok: res.ok, chatId, reason: res.reason });
   }
-  return result;
+  return { ok: results.some((r) => r.ok), results };
 }
