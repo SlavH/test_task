@@ -169,7 +169,7 @@ The **Test the voice agent** button starts a real Retell web call from the brows
 - Browser calls are rate-limited per IP.
 - The inbox updates when Retell sends `call_ended` and `call_analyzed`.
 
-A Retell phone number is now attached to Grace for inbound and outbound calls: **(833) 593-4831** (`+18335934831`). Keep the same webhook and tool URLs when reprovisioning so the number stays bound to the latest agent version.
+A Retell phone number can be attached to Grace for inbound and outbound calls. Keep the same webhook and tool URLs when reprovisioning so the number stays bound to the latest agent version.
 
 
 
