@@ -10,7 +10,7 @@ The agent is **Grace**. She handles standard repair calls, covered warranty call
 - Server-side guardrails for the $99 fee and warranty brand rules.
 - Retell custom tool endpoints and signed webhook handling.
 - Telegram notifications with call type, caller, callback number, issue, address, booking ID, and dashboard link.
-- A protected call inbox with live updates, search, filters, transcript viewer, and browser voice demo.
+- A protected call inbox with live updates, search, filters, transcript viewer, browser voice demo, admin notes/tags, and CSV/JSON export.
 - JSON persistence on a Render persistent disk.
 - Docker and Render Blueprint deployment.
 - Tests for booking, fee enforcement, warranty rules, warranty reps, spam, signatures, auth, and notifications.
@@ -183,6 +183,14 @@ The JSON store is written atomically to `DATA_DIR/state.json`. It contains calle
 
 Call recordings are linked only when Retell returns a recording URL. Access to Retell recordings is still controlled by Retell.
 
+## Admin features
+
+- **Auth**: Password-protected admin login with signed sessions and CSRF tokens. Auth can be disabled in local dev by leaving `DASHBOARD_PASSWORD` empty.
+- **Notes & tags**: Add internal notes and tags to calls for follow-up tracking.
+- **Export**: Download call history as JSON via `GET /api/admin/export`.
+- **Persona settings**: Tune Grace’s warmth/task focus, add business facts/prompt additions, preview the full prompt, and apply updates directly to the Retell agent.
+- **Telegram resend**: Manually resend or refresh Telegram notifications for a call.
+
 ## API
 
 | Endpoint | Purpose |
@@ -197,6 +205,21 @@ Call recordings are linked only when Retell returns a recording URL. Access to R
 | `POST /api/retell/tools/take-message` | Signed custom tool. |
 | `POST /api/retell/webhook` | Signed Retell call webhook. |
 | `ALL /api/retell-proxy/*` | Same-origin WebRTC signaling proxy for the browser SDK. |
+| `GET /api/auth/status` | Admin auth status. |
+| `POST /api/auth/login` | Admin login. |
+| `POST /api/auth/logout` | Admin logout. |
+| `GET /api/auth/csrf` | Get CSRF token. |
+| `GET /api/admin/persona` | Get persona config (admin). |
+| `PUT /api/admin/persona` | Update persona config (admin, CSRF). |
+| `POST /api/admin/persona/preview` | Preview persona prompt (admin, CSRF). |
+| `POST /api/admin/persona/apply` | Apply persona to Retell agent (admin, CSRF). |
+| `GET /api/admin/status` | Admin provisioning status. |
+| `GET /api/admin/export` | Export all data as JSON (admin). |
+| `GET /api/admin/calls/:callId/notes` | List notes (admin). |
+| `POST /api/admin/calls/:callId/notes` | Add note (admin, CSRF). |
+| `POST /api/admin/calls/:callId/tags` | Add tag (admin, CSRF). |
+| `DELETE /api/admin/calls/:callId/tags/:tag` | Remove tag (admin, CSRF). |
+| `POST /api/admin/calls/:callId/resend-telegram` | Resend Telegram notification (admin, CSRF). |
 
 ## Local demo data
 
