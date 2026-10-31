@@ -721,6 +721,10 @@ h1 {
   scrollbar-color: #d8d2c7 transparent;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 .detail-empty {
   display: flex;
   flex-direction: column;

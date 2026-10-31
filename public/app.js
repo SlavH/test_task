@@ -409,11 +409,13 @@ function renderDetail() {
     elements.detailContent.hidden = true;
     elements.detailEmpty.hidden = false;
     elements.detail.classList.remove("is-open");
+    elements.detail.classList.remove("has-selection");
     return;
   }
 
   elements.detailEmpty.hidden = true;
   elements.detailContent.hidden = false;
+  elements.detail.classList.add("has-selection");
   elements.detailContent.replaceChildren();
 
   const head = el("div", "detail-head");
@@ -586,6 +588,7 @@ function selectCall(callId) {
 function closeDetail() {
   state.selected = null;
   elements.detail.classList.remove("is-open");
+  elements.detail.classList.remove("has-selection");
   renderFeed();
   renderDetail();
   const url = new URL(window.location.href);
