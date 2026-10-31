@@ -232,3 +232,14 @@ Call recordings are linked only when Retell returns a recording URL. Access to R
 ## Local demo data
 
 `npm run seed:demo` adds five clearly labeled `Demo` cards. Demo data is stored in `DATA_DIR` and is not committed. Remove `data/state.json` to reset local state.
+
+## Telegram webhook (for /start subscriptions)
+If you're using `/start` subscriptions, set your bot webhook to your public URL:
+
+```bash
+curl -X POST "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook" \
+     -d "url=<PUBLIC_BASE_URL>/api/telegram/webhook" \
+     -d "secret_token=<TELEGRAM_WEBHOOK_SECRET>"
+```
+
+The app also auto-registers the webhook on startup when `PUBLIC_BASE_URL` is HTTPS and `TELEGRAM_BOT_TOKEN` is set.
