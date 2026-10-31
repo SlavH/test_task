@@ -11,7 +11,7 @@ The agent is **Grace**. She handles standard repair calls, covered warranty call
 - Retell custom tool endpoints and signed webhook handling.
 - Telegram notifications with call type, caller, callback number, issue, address, booking ID, and dashboard link.
 - A protected call inbox with live updates, search, filters, transcript viewer, browser voice demo, admin notes/tags, and CSV/JSON export.
-- JSON persistence on a Render persistent disk.
+- PostgreSQL persistence with migrations.
 - Docker and Render Blueprint deployment.
 - Tests for booking, fee enforcement, warranty rules, warranty reps, spam, signatures, auth, and notifications.
 
@@ -78,14 +78,20 @@ npm test
 | `RETELL_AGENT_ID` | Yes | Agent created by `npm run provision`. |
 | `RETELL_PHONE_NUMBER` | For phone calls | Retell phone number to bind to the latest agent version during provisioning. |
 | `PUBLIC_BASE_URL` | Production | Public HTTPS URL for tools, webhook, and Telegram links. Falls back to `RENDER_EXTERNAL_URL`. |
-| `DATABASE_URL` | Yes | PostgreSQL connection string. |
+| `DATABASE_URL` | Yes | PostgreSQL connection string (pooled). |
+| `MIGRATION_DATABASE_URL` | No | Direct/non-pooling connection used by `npm run migrate`. Falls back to `DATABASE_URL`. |
 | `TELEGRAM_BOT_TOKEN` | For notifications | Telegram bot token. |
 | `TELEGRAM_CHAT_ID` | For notifications | Target chat or user ID. |
-| `DASHBOARD_PASSWORD` | Production | Shared admin password. Leave empty for local development. |
-| `ADMIN_SESSION_SECRET` | Production | Secret used to sign admin sessions. |
-| `DATA_DIR` | No | Store directory. Render uses `/var/data`. |
+| `DASHBOARD_PASSWORD` | Production | Shared admin password. Leave empty for local development to disable auth. |
+| `ADMIN_SESSION_SECRET` | Production | Secret used to sign admin sessions. Falls back to `DASHBOARD_PASSWORD`. |
+| `DASHBOARD_TITLE` | No | Inbox title. Defaults to `FixCall Inbox`. |
+| `DASHBOARD_USER` | No | Admin username label. Defaults to `admin`. |
+| `DATA_DIR` | No | Legacy data directory (unused in Postgres mode). |
 | `ALLOW_UNSIGNED_RETELL` | No | Local testing only. Must stay `false` in production. |
 | `WEB_CALL_RATE_LIMIT` | No | Browser demo calls per IP per minute. Defaults to `5`. |
+| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | No | Optional Upstash Redis for distributed rate limiting. |
+| `FINALIZE_ORPHANS` | No | Reconcile orphaned calls on startup. Defaults to `true`. |
+| `RETELL_API_BASE` | No | Retell API base URL. Defaults to `https://api.retellai.com`. |
 | `COMPANY_NAME` | No | Used in UI and Telegram. |
 | `TIMEZONE` | No | Display timezone for the inbox. |
 
@@ -179,7 +185,7 @@ Use Vercel Pro if you need the 60-second function limit for admin provisioning. 
 
 ## Data and privacy
 
-The JSON store is written atomically to `DATA_DIR/state.json`. It contains caller names, callback numbers, addresses, issue descriptions, transcripts, and booking IDs. Admin access uses a signed session cookie. Store PostgreSQL credentials and admin secrets in environment variables only.
+Data is stored in PostgreSQL (calls, bookings, messages, notifications, notes, tags, persona config, audit logs). Admin access uses signed sessions with CSRF protection. Store PostgreSQL credentials and admin secrets in environment variables only.
 
 Call recordings are linked only when Retell returns a recording URL. Access to Retell recordings is still controlled by Retell.
 
