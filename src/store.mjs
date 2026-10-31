@@ -506,7 +506,6 @@ export class Store {
     );
     return { chatId: String(chatId) };
   }
-}
 
   async exportData() {
     const [calls, bookings, messages, notifications, notes, tags, persona] =
